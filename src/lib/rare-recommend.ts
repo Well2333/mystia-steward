@@ -109,12 +109,14 @@ export function rankRecipesForRare(
   for (const recipe of allRecipes as IRecipe[]) {
     if (!availableRecipeIds.has(recipe.id)) continue;
 
-    // 基础食材可用性检查
-    const hasDisabledBaseIngredient = recipe.ingredients.some((name) => {
+    // 基础食材可用性检查：必须在可用食材列表中，且未被禁用
+    const hasUnavailableBaseIngredient = recipe.ingredients.some((name) => {
       const ing = ingredientsByName.get(name);
-      return ing && disabledIngredientIds.has(ing.id);
+      if (!ing) return true;
+      if (!availableIngredientIds.has(ing.id)) return true;
+      return disabledIngredientIds.has(ing.id);
     });
-    if (hasDisabledBaseIngredient) continue;
+    if (hasUnavailableBaseIngredient) continue;
 
     const extraSlots = 5 - recipe.ingredients.length;
 

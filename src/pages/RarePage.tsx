@@ -52,7 +52,7 @@ export function RarePage() {
 
   const rareRecipeIds = useMemo(() => store.getRareRecipeIds(), [store.recipeFilter]);
   const rareBevIds = useMemo(() => store.getRareBeverageIds(), [store.beverageFilter]);
-  const rareIngredientIds = useMemo(() => store.getRareIngredientIds(), [store.ingredientFilter]);
+  const rareIngredientIds = useMemo(() => store.getRareIngredientIds(), [store.ingredientFilter, store.ownedIngredientIds]);
 
   const rawBevResults = useMemo(() => {
     if (!selectedCustomer || !requiredBevTag) return EMPTY_BEVERAGES;

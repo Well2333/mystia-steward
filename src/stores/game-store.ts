@@ -22,6 +22,7 @@ interface GameState {
   popularFoodTag: string | null;
   popularHateFoodTag: string | null;
   hideUnowned: boolean;
+  guideAutoOpenDisabled: boolean;
 
   // === 菜谱过滤 (3-state: all/rare/disabled) ===
   recipeFilter: Record<number, FilterState>;
@@ -66,6 +67,7 @@ interface GameState {
   setPopularFoodTag: (tag: string | null) => void;
   setPopularHateFoodTag: (tag: string | null) => void;
   setHideUnowned: (v: boolean) => void;
+  setGuideAutoOpenDisabled: (v: boolean) => void;
 
   cycleRecipeFilter: (id: number) => void;
   cycleBeverageFilter: (id: number) => void;
@@ -109,6 +111,7 @@ export const useGameStore = create<GameState>()(
       popularFoodTag: null,
       popularHateFoodTag: null,
       hideUnowned: true,
+      guideAutoOpenDisabled: false,
       recipeFilter: {},
       beverageFilter: {},
       ingredientFilter: {},
@@ -181,6 +184,7 @@ export const useGameStore = create<GameState>()(
       setPopularFoodTag: (tag) => set({ popularFoodTag: tag }),
       setPopularHateFoodTag: (tag) => set({ popularHateFoodTag: tag }),
       setHideUnowned: (v) => set({ hideUnowned: v }),
+      setGuideAutoOpenDisabled: (v) => set({ guideAutoOpenDisabled: v }),
 
       cycleRecipeFilter: (id) =>
         set((s) => ({
@@ -300,10 +304,10 @@ export const useGameStore = create<GameState>()(
             const owned = s.ownedIngredientQty[id] ?? 0;
             if (owned < qty) filter[id] = state;
           }
-          // Also set unowned to the state
+          // 未取得食材强制禁用，避免错误参与推荐
           const ownedSet = new Set(s.ownedIngredientIds);
           for (const ing of allIngredients as Array<{ id: number }>) {
-            if (!ownedSet.has(ing.id)) filter[ing.id] = state;
+            if (!ownedSet.has(ing.id)) filter[ing.id] = 'disabled';
           }
           return { ingredientFilter: filter };
         }),
@@ -361,9 +365,10 @@ export const useGameStore = create<GameState>()(
           .map(([id]) => Number(id));
       },
       getRareIngredientIds: () => {
-        const { ingredientFilter } = get();
+        const { ingredientFilter, ownedIngredientIds } = get();
+        const ownedSet = new Set(ownedIngredientIds);
         return Object.entries(ingredientFilter)
-          .filter(([, state]) => state === 'all' || state === 'rare')
+          .filter(([id, state]) => (state === 'all' || state === 'rare') && ownedSet.has(Number(id)))
           .map(([id]) => Number(id));
       },
     }),

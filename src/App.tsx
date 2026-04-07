@@ -1,7 +1,12 @@
+import { useEffect, useState } from 'react';
+import { CircleHelp } from 'lucide-react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router';
+import { UsageGuideModal } from '@/components/UsageGuideModal';
+import { Button } from '@/components/ui/button';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { NormalPage } from '@/pages/NormalPage';
 import { RarePage } from '@/pages/RarePage';
+import { useGameStore } from '@/stores/game-store';
 import { cn } from '@/lib/utils';
 
 function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
@@ -23,6 +28,18 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
 }
 
 export default function App() {
+  const guideAutoOpenDisabled = useGameStore((state) => state.guideAutoOpenDisabled);
+  const setGuideAutoOpenDisabled = useGameStore((state) => state.setGuideAutoOpenDisabled);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [hasInitializedGuide, setHasInitializedGuide] = useState(false);
+
+  useEffect(() => {
+    if (hasInitializedGuide) return;
+
+    setHasInitializedGuide(true);
+    if (!guideAutoOpenDisabled) setGuideOpen(true);
+  }, [guideAutoOpenDisabled, hasInitializedGuide]);
+
   return (
     <BrowserRouter>
       <div className="min-h-screen">
@@ -35,6 +52,12 @@ export default function App() {
             <NavItem to="/normal">普客</NavItem>
             <NavItem to="/rare">稀客</NavItem>
             <NavItem to="/settings">设置</NavItem>
+            <div className="ml-auto">
+              <Button variant="outline" size="sm" onClick={() => setGuideOpen(true)}>
+                <CircleHelp className="size-4" />
+                使用指南
+              </Button>
+            </div>
           </div>
         </nav>
         <main className="max-w-7xl mx-auto px-4 py-6">
@@ -45,6 +68,12 @@ export default function App() {
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
+        <UsageGuideModal
+          open={guideOpen}
+          onOpenChange={setGuideOpen}
+          autoOpenDisabled={guideAutoOpenDisabled}
+          onAutoOpenDisabledChange={setGuideAutoOpenDisabled}
+        />
       </div>
     </BrowserRouter>
   );
