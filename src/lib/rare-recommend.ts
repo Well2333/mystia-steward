@@ -17,6 +17,8 @@ import {
   mergeAllTags,
   scoreFoodForRare,
   getRating,
+  canCancelNegativeByConflict,
+  countConflictCancellations,
 } from './tags';
 
 import allRecipes from '@/data/recipes.json';
@@ -120,6 +122,16 @@ export function rankRecipesForRare(
 
     const extraSlots = 5 - recipe.ingredients.length;
 
+    const baseDynamicTags = getDynamicTags(
+      recipe.price,
+      recipe.ingredients.length,
+      popularFoodTag,
+      popularHateFoodTag,
+      recipe.positiveTags,
+    );
+    const baseAllTags = mergeAllTags(recipe.positiveTags, [], baseDynamicTags);
+    const { activeTags: baseActiveTags } = resolveTagConflicts(baseAllTags);
+
     // 筛选此菜谱可用的候选食材
     const baseIngNames = new Set(recipe.ingredients);
     const allCandidates = usableIngredients.filter(
@@ -128,32 +140,44 @@ export function rankRecipesForRare(
         !baseIngNames.has(ing.name),
     );
 
-    // === 性能优化：过滤 + 限制候选数量 ===
-    // 将候选分为"相关"（含客人正面tag）和"无关"
+    // === 性能优化：仅保留相关候选并限制数量 ===
+    // 相关定义：
+    // 1) 可匹配点单Tag/顾客喜好Tag
+    // 2) 可通过互斥规则抵消当前已激活的顾客负面Tag
     const relevant: IIngredient[] = [];
-    const irrelevant: IIngredient[] = [];
     for (const c of allCandidates) {
-      if (c.tags.some((t) => customerPosTagSet.has(t) || t === requiredFoodTag)) {
+      const matchesPositiveOrRequired = c.tags.some((t) => customerPosTagSet.has(t) || t === requiredFoodTag);
+      const canCancelNegative = canCancelNegativeByConflict(
+        baseActiveTags,
+        c.tags,
+        customer.negativeTags,
+      );
+      if (matchesPositiveOrRequired || canCancelNegative) {
         relevant.push(c);
-      } else {
-        irrelevant.push(c);
       }
     }
 
     let candidates: IIngredient[];
-    if (relevant.length <= MAX_CANDIDATES) {
-      // 补充一些低价无关食材（可能通过大份等动态tag有用）
-      irrelevant.sort((a, b) => a.price - b.price);
-      candidates = [...relevant, ...irrelevant.slice(0, MAX_CANDIDATES - relevant.length)];
-    } else {
-      // 按匹配正面tag数量降序，同数则价格升序
+    if (relevant.length > MAX_CANDIDATES) {
+      // 按相关性降序：点单Tag > 正面Tag匹配 > 负面Tag相消，同数则价格升序
       relevant.sort((a, b) => {
-        const aHits = a.tags.filter((t) => customerPosTagSet.has(t)).length;
-        const bHits = b.tags.filter((t) => customerPosTagSet.has(t)).length;
-        if (aHits !== bHits) return bHits - aHits;
+        const aRequiredHit = a.tags.includes(requiredFoodTag) ? 1 : 0;
+        const bRequiredHit = b.tags.includes(requiredFoodTag) ? 1 : 0;
+        if (aRequiredHit !== bRequiredHit) return bRequiredHit - aRequiredHit;
+
+        const aPositiveHits = a.tags.filter((t) => customerPosTagSet.has(t)).length;
+        const bPositiveHits = b.tags.filter((t) => customerPosTagSet.has(t)).length;
+        if (aPositiveHits !== bPositiveHits) return bPositiveHits - aPositiveHits;
+
+        const aCancelHits = countConflictCancellations(baseActiveTags, a.tags, customer.negativeTags);
+        const bCancelHits = countConflictCancellations(baseActiveTags, b.tags, customer.negativeTags);
+        if (aCancelHits !== bCancelHits) return bCancelHits - aCancelHits;
+
         return a.price - b.price;
       });
       candidates = relevant.slice(0, MAX_CANDIDATES);
+    } else {
+      candidates = relevant;
     }
 
     candidates.sort((a, b) => a.price - b.price);
@@ -240,14 +264,12 @@ export function rankRecipesForRare(
     });
   }
 
-  // Step c: 排序 —— 极佳优先，然后按利润降序
+  // Step c: 排序 —— 极佳优先，然后按价格降序
   results.sort((a, b) => {
     const aPerfect = a.rating === '极佳' ? 0 : 1;
     const bPerfect = b.rating === '极佳' ? 0 : 1;
     if (aPerfect !== bPerfect) return aPerfect - bPerfect;
-    const aProfit = a.recipe.price - a.baseCost - a.extraCost;
-    const bProfit = b.recipe.price - b.baseCost - b.extraCost;
-    return bProfit - aProfit;
+    return b.recipe.price - a.recipe.price;
   });
 
   return results;

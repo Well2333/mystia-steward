@@ -10,6 +10,37 @@ const TAG_CONFLICTS: [string, string][] = [
   ['大份', '小巧'],
 ];
 
+/**
+ * 统计新增标签可抵消的顾客负面弱标签数量。
+ * 仅当弱标签当前处于激活状态，且顾客确实厌恶该标签时，才计为可抵消。
+ */
+export function countConflictCancellations(
+  baseActiveTags: string[],
+  addedTags: string[],
+  customerNegativeTags: string[],
+): number {
+  let count = 0;
+  for (const [strong, weak] of TAG_CONFLICTS) {
+    if (
+      addedTags.includes(strong) &&
+      baseActiveTags.includes(weak) &&
+      customerNegativeTags.includes(weak)
+    ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/** 新增标签是否能通过互斥规则抵消顾客负面弱标签 */
+export function canCancelNegativeByConflict(
+  baseActiveTags: string[],
+  addedTags: string[],
+  customerNegativeTags: string[],
+): boolean {
+  return countConflictCancellations(baseActiveTags, addedTags, customerNegativeTags) > 0;
+}
+
 /** 计算互斥后的有效标签和被抵消的标签 */
 export function resolveTagConflicts(tags: string[]): {
   activeTags: string[];
