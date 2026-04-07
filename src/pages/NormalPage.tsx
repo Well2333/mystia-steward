@@ -15,7 +15,7 @@ import {
 import { recipeIndexMap, beverageIndexMap, normalCustomerIndexMap } from '@/lib/sprite-index';
 import type { INormalRecipeResult, INormalBeverageResult } from '@/lib/types';
 
-type SortMode = 'coverage' | 'profit';
+type SortMode = 'coverage' | 'price';
 type BevSortMode = 'coverage' | 'price';
 type ViewTab = 'recipes' | 'beverages';
 
@@ -47,12 +47,12 @@ export function NormalPage() {
   const recipeResults = useMemo(() => {
     const sorted = [...rawRecipeResults];
     sorted.sort((a, b) => {
-      if (sortMode === 'profit') {
-        if (b.profit !== a.profit) return b.profit - a.profit;
+      if (sortMode === 'price') {
+        if (b.recipe.price !== a.recipe.price) return b.recipe.price - a.recipe.price;
         return b.totalCoverage - a.totalCoverage;
       }
       if (b.totalCoverage !== a.totalCoverage) return b.totalCoverage - a.totalCoverage;
-      return b.profit - a.profit;
+      return b.recipe.price - a.recipe.price;
     });
     return sorted;
   }, [rawRecipeResults, sortMode]);
@@ -99,7 +99,7 @@ export function NormalPage() {
               {viewTab === 'recipes' && (
                 <div className="flex gap-1">
                   <Button size="sm" variant={sortMode === 'coverage' ? 'default' : 'outline'} onClick={() => setSortMode('coverage')} className="text-xs h-7 rounded-full">覆盖优先</Button>
-                  <Button size="sm" variant={sortMode === 'profit' ? 'default' : 'outline'} onClick={() => setSortMode('profit')} className="text-xs h-7 rounded-full">利润优先</Button>
+                  <Button size="sm" variant={sortMode === 'price' ? 'default' : 'outline'} onClick={() => setSortMode('price')} className="text-xs h-7 rounded-full">价格优先</Button>
                 </div>
               )}
               {viewTab === 'beverages' && (

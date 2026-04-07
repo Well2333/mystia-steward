@@ -32,6 +32,7 @@ export default function App() {
   const setGuideAutoOpenDisabled = useGameStore((state) => state.setGuideAutoOpenDisabled);
   const [guideOpen, setGuideOpen] = useState(false);
   const [hasInitializedGuide, setHasInitializedGuide] = useState(false);
+  const appCommitHash = __APP_COMMIT_HASH__;
 
   useEffect(() => {
     if (hasInitializedGuide) return;
@@ -53,6 +54,9 @@ export default function App() {
             <NavItem to="/rare">稀客</NavItem>
             <NavItem to="/settings">设置</NavItem>
             <div className="ml-auto flex items-center gap-2">
+              <span className="hidden sm:inline text-[11px] text-muted-foreground px-2">
+                {appCommitHash}
+              </span>
               <Button
                 variant="outline"
                 size="sm"
