@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CircleHelp } from 'lucide-react';
+import { CircleHelp, ExternalLink } from 'lucide-react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router';
 import { UsageGuideModal } from '@/components/UsageGuideModal';
 import { Button } from '@/components/ui/button';
@@ -52,7 +52,15 @@ export default function App() {
             <NavItem to="/normal">普客</NavItem>
             <NavItem to="/rare">稀客</NavItem>
             <NavItem to="/settings">设置</NavItem>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open('https://github.com/Well2333/mystia-steward', '_blank', 'noopener,noreferrer')}
+              >
+                <ExternalLink className="size-4" />
+                GitHub
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setGuideOpen(true)}>
                 <CircleHelp className="size-4" />
                 使用指南
