@@ -4,7 +4,7 @@
  */
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 
-const CONFIG_VERSION = 1;
+const CONFIG_VERSION = 3;
 const MAGIC_PREFIX = 'IZK'; // 用于识别配置字符串
 
 export interface ExportableConfig {
@@ -22,9 +22,14 @@ export interface ExportableConfig {
   pf: string | null;  // popularFoodTag
   ph: string | null;  // popularHateFoodTag
   hn: boolean;        // rareHideNonPerfect
+  mx: number;         // rareMaxExtraIngredients
+  rs: 'asc' | 'desc'; // rareRecipePriceSort
+  bs: 'asc' | 'desc'; // rareBeveragePriceSort
   hc: number[];       // rareHiddenCustomerIds
   ct: Record<string, { f: string | null; b: string | null }>; // rareCustomerTags (compressed)
   di: number[];       // rareDisabledIngredientIds
+  fr: Record<string, number[]> | number[] | Record<string, string[]>; // rareFavoriteRecipesByCustomer (legacy supports array/map)
+  fb: Record<string, number[]>; // rareFavoriteBeverages
 }
 
 /** Shorten filter state: 'all'→'a', 'rare'→'r', 'disabled'→'d' */
@@ -57,9 +62,14 @@ export function exportConfig(state: {
   popularFoodTag: string | null;
   popularHateFoodTag: string | null;
   rareHideNonPerfect: boolean;
+  rareMaxExtraIngredients: number;
+  rareRecipePriceSort: 'asc' | 'desc';
+  rareBeveragePriceSort: 'asc' | 'desc';
   rareHiddenCustomerIds: number[];
   rareCustomerTags: Record<number, { food: string | null; bev: string | null }>;
   rareDisabledIngredientIds: number[];
+  rareFavoriteRecipesByCustomer: Record<string, number[]>;
+  rareFavoriteBeverages: Record<string, number[]>;
 }): string {
   const ct: Record<string, { f: string | null; b: string | null }> = {};
   for (const [k, v] of Object.entries(state.rareCustomerTags)) {
@@ -78,9 +88,14 @@ export function exportConfig(state: {
     pf: state.popularFoodTag,
     ph: state.popularHateFoodTag,
     hn: state.rareHideNonPerfect,
+    mx: state.rareMaxExtraIngredients,
+    rs: state.rareRecipePriceSort,
+    bs: state.rareBeveragePriceSort,
     hc: state.rareHiddenCustomerIds,
     ct,
     di: state.rareDisabledIngredientIds,
+    fr: state.rareFavoriteRecipesByCustomer,
+    fb: state.rareFavoriteBeverages,
   };
 
   const json = JSON.stringify(config);
@@ -100,9 +115,14 @@ export function importConfig(str: string): {
   popularFoodTag: string | null;
   popularHateFoodTag: string | null;
   rareHideNonPerfect: boolean;
+  rareMaxExtraIngredients: number;
+  rareRecipePriceSort: 'asc' | 'desc';
+  rareBeveragePriceSort: 'asc' | 'desc';
   rareHiddenCustomerIds: number[];
   rareCustomerTags: Record<number, { food: string | null; bev: string | null }>;
   rareDisabledIngredientIds: number[];
+  rareFavoriteRecipesByCustomer: Record<string, number[]>;
+  rareFavoriteBeverages: Record<string, number[]>;
 } {
   const trimmed = str.trim();
   if (!trimmed.startsWith(MAGIC_PREFIX)) {
@@ -133,6 +153,29 @@ export function importConfig(str: string): {
     }
   }
 
+  const rareFavoriteRecipesByCustomer: Record<string, number[]> = {};
+  if (Array.isArray(config.fr)) {
+    // 兼容 v3：全局收藏数组。迁移为一个独立桶，避免再被默认共享。
+    const globalBucket: number[] = [];
+    for (const id of config.fr) {
+      if (typeof id !== 'number' || !Number.isFinite(id)) continue;
+      if (!globalBucket.includes(id)) globalBucket.push(id);
+    }
+    rareFavoriteRecipesByCustomer._legacy_global = globalBucket;
+  } else if (config.fr && typeof config.fr === 'object') {
+    for (const [k, values] of Object.entries(config.fr)) {
+      const normalized: number[] = [];
+      for (const value of values as Array<number | string>) {
+        const recipeId = typeof value === 'number'
+          ? value
+          : Number(String(value).split(':')[0]);
+        if (!Number.isFinite(recipeId)) continue;
+        if (!normalized.includes(recipeId)) normalized.push(recipeId);
+      }
+      rareFavoriteRecipesByCustomer[k] = normalized;
+    }
+  }
+
   return {
     recipeFilter: expandFilter(config.rf ?? {}),
     beverageFilter: expandFilter(config.bf ?? {}),
@@ -144,9 +187,14 @@ export function importConfig(str: string): {
     popularFoodTag: config.pf ?? null,
     popularHateFoodTag: config.ph ?? null,
     rareHideNonPerfect: config.hn ?? true,
+    rareMaxExtraIngredients: Math.max(0, Math.min(4, config.mx ?? 4)),
+    rareRecipePriceSort: config.rs === 'asc' ? 'asc' : 'desc',
+    rareBeveragePriceSort: config.bs === 'asc' ? 'asc' : 'desc',
     rareHiddenCustomerIds: config.hc ?? [],
     rareCustomerTags,
     rareDisabledIngredientIds: config.di ?? [],
+    rareFavoriteRecipesByCustomer,
+    rareFavoriteBeverages: config.fb ?? {},
   };
 }
 

@@ -133,7 +133,7 @@ export function NormalPage() {
                         <span className="font-semibold text-sm">{c.name}</span>
                       </div>
                       <div className="flex flex-wrap gap-1">
-                        {c.positiveTags.map((tag) => <TagBadge key={tag} tag={tag} variant="positive" />)}
+                        {c.positiveTags.map((tag) => <TagBadge key={tag} tag={tag} variant="preferred" />)}
                       </div>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {c.beverageTags.map((tag) => <TagBadge key={tag} tag={tag} variant="default" />)}
@@ -164,7 +164,7 @@ function RecipeCard({ r, idx }: { r: INormalRecipeResult; idx: number }) {
               <span className="text-xs text-muted-foreground">利润 ¥{r.profit}</span>
             </div>
             <div className="flex flex-wrap gap-1 mt-1">
-              {r.recipe.positiveTags.map((tag) => <TagBadge key={tag} tag={tag} variant={r.matchedTags.includes(tag) ? 'matched' : 'positive'} />)}
+              {r.recipe.positiveTags.map((tag) => <TagBadge key={tag} tag={tag} variant={r.matchedTags.includes(tag) ? 'matched' : 'default'} />)}
             </div>
             <div className="mt-1"><CustomerScoreBadges scores={r.customerScores} /></div>
             <p className="text-xs text-muted-foreground mt-0.5">食材: {r.recipe.ingredients.join(', ')}</p>

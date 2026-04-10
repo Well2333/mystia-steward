@@ -1,5 +1,5 @@
 /**
- * 稀客推荐算法：排列组合搜索最低成本极佳方案
+ * 稀客推荐算法：组合搜索菜谱加料方案
  */
 import type {
   IRecipe,
@@ -45,6 +45,86 @@ export function getAllRareCustomers(): ICustomerRare[] {
   return allRareCustomers as unknown as ICustomerRare[];
 }
 
+interface IngredientTagReasonResult {
+  reasonTagsByIngredient: Record<number, string[]>;
+  assignedBaseReuseScore: number;
+  assignedQtyScore: number;
+  assignedPriceScore: number;
+}
+
+function getIngredientOwnedQty(
+  ingredientId: number,
+  ownedIngredientQty: Record<number, number>,
+): number {
+  return ownedIngredientQty[ingredientId] ?? 0;
+}
+
+function compareIngredientByOwnedThenPrice(
+  a: IIngredient,
+  b: IIngredient,
+  ownedIngredientQty: Record<number, number>,
+): number {
+  const aQty = getIngredientOwnedQty(a.id, ownedIngredientQty);
+  const bQty = getIngredientOwnedQty(b.id, ownedIngredientQty);
+  if (aQty !== bQty) return bQty - aQty;
+  if (a.price !== b.price) return a.price - b.price;
+  return a.id - b.id;
+}
+
+function buildExtraIngredientTagReasons(
+  selectedIngredients: IIngredient[],
+  baseActiveTags: string[],
+  finalActiveTags: string[],
+  customerPreferredTags: string[],
+  requiredFoodTag: string,
+  baseIngredientNames: Set<string>,
+  ownedIngredientQty: Record<number, number>,
+): IngredientTagReasonResult {
+  const reasonTagsByIngredient: Record<number, string[]> = {};
+  const neededTags: string[] = [];
+
+  if (!baseActiveTags.includes(requiredFoodTag) && finalActiveTags.includes(requiredFoodTag)) {
+    neededTags.push(requiredFoodTag);
+  }
+
+  for (const tag of customerPreferredTags) {
+    if (tag === requiredFoodTag) continue;
+    if (!baseActiveTags.includes(tag) && finalActiveTags.includes(tag)) {
+      neededTags.push(tag);
+    }
+  }
+
+  let assignedBaseReuseScore = 0;
+  let assignedQtyScore = 0;
+  let assignedPriceScore = 0;
+
+  for (const tag of neededTags) {
+    const carriers = selectedIngredients
+      .filter((ingredient) => ingredient.tags.includes(tag))
+      .sort((a, b) => {
+        const aBaseReuse = baseIngredientNames.has(a.name) ? 1 : 0;
+        const bBaseReuse = baseIngredientNames.has(b.name) ? 1 : 0;
+        if (aBaseReuse !== bBaseReuse) return bBaseReuse - aBaseReuse;
+        return compareIngredientByOwnedThenPrice(a, b, ownedIngredientQty);
+      });
+
+    if (carriers.length === 0) continue;
+    const chosen = carriers[0];
+    if (!reasonTagsByIngredient[chosen.id]) reasonTagsByIngredient[chosen.id] = [];
+    reasonTagsByIngredient[chosen.id].push(tag);
+    if (baseIngredientNames.has(chosen.name)) assignedBaseReuseScore++;
+    assignedQtyScore += getIngredientOwnedQty(chosen.id, ownedIngredientQty);
+    assignedPriceScore += chosen.price;
+  }
+
+  return {
+    reasonTagsByIngredient,
+    assignedBaseReuseScore,
+    assignedQtyScore,
+    assignedPriceScore,
+  };
+}
+
 /** 评估一组额外食材的食物得分与是否满足点单 */
 function evaluateCombo(
   recipe: IRecipe,
@@ -87,13 +167,16 @@ export function rankRecipesForRare(
   disabledIngredientIds: Set<number>,
   popularFoodTag: string | null,
   popularHateFoodTag: string | null,
-  topBevScore: number,
-  topBevMeets: boolean,
+  ownedIngredientQty: Record<number, number> = {},
 ): IRareRecipeResult[] {
   const results: IRareRecipeResult[] = [];
 
-  // 极佳所需最低食物得分
-  const minFoodScore = topBevMeets ? Math.max(0, 4 - topBevScore) : Infinity;
+  // 实现细节：默认用户酒水满足1个条件（+1 且满足点单），
+  // 因此料理仅追求3分即可，超过3分不再产生额外收益。
+  const ASSUMED_BEV_SCORE = 1;
+  const ASSUMED_BEV_MEETS = true;
+  const FOOD_SCORE_CAP = 3;
+  const minFoodScore = FOOD_SCORE_CAP;
 
   // 构建可用食材列表
   const usableIngredients: IIngredient[] = [];
@@ -104,8 +187,8 @@ export function rankRecipesForRare(
     usableIngredients.push(ing);
   }
 
-  // 预计算客人正面tag集合（用于筛选候选食材）
-  const customerPosTagSet = new Set(customer.positiveTags);
+  // 预计算客人喜好tag集合（用于筛选候选食材）
+  const customerPreferredTagSet = new Set(customer.positiveTags);
   const MAX_CANDIDATES = 18;
 
   for (const recipe of allRecipes as IRecipe[]) {
@@ -133,96 +216,114 @@ export function rankRecipesForRare(
     const { activeTags: baseActiveTags } = resolveTagConflicts(baseAllTags);
 
     // 筛选此菜谱可用的候选食材
-    const baseIngNames = new Set(recipe.ingredients);
     const allCandidates = usableIngredients.filter(
-      (ing) =>
-        !hasForbiddenTag(ing.tags, recipe.negativeTags) &&
-        !baseIngNames.has(ing.name),
+      (ing) => !hasForbiddenTag(ing.tags, recipe.negativeTags),
     );
 
     // === 性能优化：仅保留相关候选并限制数量 ===
     // 相关定义：
     // 1) 可匹配点单Tag/顾客喜好Tag
-    // 2) 可通过互斥规则抵消当前已激活的顾客负面Tag
+    // 2) 可通过互斥规则抵消当前已激活的顾客厌恶Tag
     const relevant: IIngredient[] = [];
     for (const c of allCandidates) {
-      const matchesPositiveOrRequired = c.tags.some((t) => customerPosTagSet.has(t) || t === requiredFoodTag);
+      const matchesPreferredOrRequired = c.tags.some((t) => customerPreferredTagSet.has(t) || t === requiredFoodTag);
       const canCancelNegative = canCancelNegativeByConflict(
         baseActiveTags,
         c.tags,
         customer.negativeTags,
       );
-      if (matchesPositiveOrRequired || canCancelNegative) {
+      if (matchesPreferredOrRequired || canCancelNegative) {
         relevant.push(c);
       }
     }
 
-    let candidates: IIngredient[];
-    if (relevant.length > MAX_CANDIDATES) {
-      // 按相关性降序：点单Tag > 正面Tag匹配 > 负面Tag相消，同数则价格升序
-      relevant.sort((a, b) => {
-        const aRequiredHit = a.tags.includes(requiredFoodTag) ? 1 : 0;
-        const bRequiredHit = b.tags.includes(requiredFoodTag) ? 1 : 0;
-        if (aRequiredHit !== bRequiredHit) return bRequiredHit - aRequiredHit;
+    // 按相关性排序：点单Tag > 喜好Tag匹配 > 厌恶Tag相消。
+    // 在相关性相同的情况下，优先选择持有数更高的食材；再同则价格更低。
+    const baseIngNames = new Set(recipe.ingredients);
+    const candidateComparator = (a: IIngredient, b: IIngredient) => {
+      const aRequiredHit = a.tags.includes(requiredFoodTag) ? 1 : 0;
+      const bRequiredHit = b.tags.includes(requiredFoodTag) ? 1 : 0;
+      if (aRequiredHit !== bRequiredHit) return bRequiredHit - aRequiredHit;
 
-        const aPositiveHits = a.tags.filter((t) => customerPosTagSet.has(t)).length;
-        const bPositiveHits = b.tags.filter((t) => customerPosTagSet.has(t)).length;
-        if (aPositiveHits !== bPositiveHits) return bPositiveHits - aPositiveHits;
+      const aPreferredHits = a.tags.filter((t) => customerPreferredTagSet.has(t)).length;
+      const bPreferredHits = b.tags.filter((t) => customerPreferredTagSet.has(t)).length;
+      if (aPreferredHits !== bPreferredHits) return bPreferredHits - aPreferredHits;
 
-        const aCancelHits = countConflictCancellations(baseActiveTags, a.tags, customer.negativeTags);
-        const bCancelHits = countConflictCancellations(baseActiveTags, b.tags, customer.negativeTags);
-        if (aCancelHits !== bCancelHits) return bCancelHits - aCancelHits;
+      const aCancelHits = countConflictCancellations(baseActiveTags, a.tags, customer.negativeTags);
+      const bCancelHits = countConflictCancellations(baseActiveTags, b.tags, customer.negativeTags);
+      if (aCancelHits !== bCancelHits) return bCancelHits - aCancelHits;
 
-        return a.price - b.price;
-      });
-      candidates = relevant.slice(0, MAX_CANDIDATES);
-    } else {
-      candidates = relevant;
-    }
+      const aBaseReuse = baseIngNames.has(a.name) ? 1 : 0;
+      const bBaseReuse = baseIngNames.has(b.name) ? 1 : 0;
+      if (aBaseReuse !== bBaseReuse) return bBaseReuse - aBaseReuse;
 
-    candidates.sort((a, b) => a.price - b.price);
+      return compareIngredientByOwnedThenPrice(a, b, ownedIngredientQty);
+    };
 
-    // Step b: 排列组合搜索最低成本达成极佳的方案
+    const candidates = [...relevant]
+      .sort(candidateComparator)
+      .slice(0, MAX_CANDIDATES);
+
+    // Step b: 组合搜索加料方案（以最少加料为先，再按库存优先）
     let bestCombo: IIngredient[] | null = null;
-    let bestCost = Infinity;
+    let bestEval = evaluateCombo(recipe, [], customer, requiredFoodTag, popularFoodTag, popularHateFoodTag);
+    let bestReasonData: IngredientTagReasonResult = {
+      reasonTagsByIngredient: {},
+      assignedBaseReuseScore: 0,
+      assignedQtyScore: 0,
+      assignedPriceScore: 0,
+    };
 
     // 先评估不加料的情况
-    const baseEval = evaluateCombo(recipe, [], customer, requiredFoodTag, popularFoodTag, popularHateFoodTag);
+    const baseEval = bestEval;
 
     if (
-      minFoodScore !== Infinity &&
       baseEval.foodScore >= minFoodScore &&
       baseEval.meetsRequiredFood
     ) {
       bestCombo = [];
-      bestCost = 0;
-    } else if (extraSlots > 0 && minFoodScore !== Infinity) {
+    } else if (extraSlots > 0) {
       const n = candidates.length;
-      // 预计算候选食材的累积最低价格（用于剪枝）
-      const minPrices = candidates.map((c) => c.price);
 
       outer: for (let k = 1; k <= Math.min(extraSlots, n); k++) {
-        // 剪枝：k 个最便宜的候选总价 >= bestCost 则跳过
-        let cheapestK = 0;
-        for (let ci = 0; ci < k; ci++) cheapestK += minPrices[ci];
-        if (cheapestK >= bestCost) break outer;
-
+        let bestComboForK: IIngredient[] | null = null;
+        let bestEvalForK: ReturnType<typeof evaluateCombo> | null = null;
+        let bestReasonForK: IngredientTagReasonResult | null = null;
+        let bestCostForK = Infinity;
         const indices = Array.from({ length: k }, (_, i) => i);
         while (true) {
-          // 快速计算组合成本（利用已排序候选提前剪枝）
-          let cost = 0;
-          let tooExpensive = false;
-          for (let ci = 0; ci < k; ci++) {
-            cost += candidates[indices[ci]].price;
-            if (cost >= bestCost) { tooExpensive = true; break; }
-          }
+          const combo = indices.map((i) => candidates[i]);
+          const ev = evaluateCombo(recipe, combo, customer, requiredFoodTag, popularFoodTag, popularHateFoodTag);
+          if (ev.foodScore >= minFoodScore && ev.meetsRequiredFood) {
+            const cost = combo.reduce((sum, ingredient) => sum + ingredient.price, 0);
+            const reasonData = buildExtraIngredientTagReasons(
+              combo,
+              baseEval.activeTags,
+              ev.activeTags,
+              customer.positiveTags,
+              requiredFoodTag,
+              baseIngNames,
+              ownedIngredientQty,
+            );
 
-          if (!tooExpensive) {
-            const combo = indices.map((i) => candidates[i]);
-            const ev = evaluateCombo(recipe, combo, customer, requiredFoodTag, popularFoodTag, popularHateFoodTag);
-            if (ev.foodScore >= minFoodScore && ev.meetsRequiredFood) {
-              bestCombo = combo;
-              bestCost = cost;
+            const shouldReplace =
+              bestComboForK === null ||
+              reasonData.assignedBaseReuseScore > (bestReasonForK?.assignedBaseReuseScore ?? -1) ||
+              (reasonData.assignedBaseReuseScore === (bestReasonForK?.assignedBaseReuseScore ?? -1) &&
+                reasonData.assignedQtyScore > (bestReasonForK?.assignedQtyScore ?? -1)) ||
+              (reasonData.assignedBaseReuseScore === (bestReasonForK?.assignedBaseReuseScore ?? -1) &&
+                reasonData.assignedQtyScore === (bestReasonForK?.assignedQtyScore ?? -1) &&
+                reasonData.assignedPriceScore < (bestReasonForK?.assignedPriceScore ?? Infinity)) ||
+              (reasonData.assignedBaseReuseScore === (bestReasonForK?.assignedBaseReuseScore ?? -1) &&
+                reasonData.assignedQtyScore === (bestReasonForK?.assignedQtyScore ?? -1) &&
+                reasonData.assignedPriceScore === (bestReasonForK?.assignedPriceScore ?? Infinity) &&
+                cost < bestCostForK);
+
+            if (shouldReplace) {
+              bestComboForK = combo;
+              bestEvalForK = ev;
+              bestReasonForK = reasonData;
+              bestCostForK = cost;
             }
           }
 
@@ -233,17 +334,26 @@ export function rankRecipesForRare(
           indices[i]++;
           for (let j = i + 1; j < k; j++) indices[j] = indices[j - 1] + 1;
         }
-        if (bestCombo !== null) break outer;
+
+        if (bestComboForK !== null && bestEvalForK && bestReasonForK) {
+          bestCombo = bestComboForK;
+          bestEval = bestEvalForK;
+          bestReasonData = bestReasonForK;
+          break outer;
+        }
       }
     }
 
     // 计算最终结果
     const selectedIngredients = bestCombo ?? [];
-    const finalEval = bestCombo !== null
-      ? evaluateCombo(recipe, selectedIngredients, customer, requiredFoodTag, popularFoodTag, popularHateFoodTag)
-      : baseEval;
+    const finalEval = bestCombo !== null ? bestEval : baseEval;
+    const effectiveFoodScore = Math.min(finalEval.foodScore, FOOD_SCORE_CAP);
 
-    const rating = getRating(finalEval.foodScore, topBevScore, finalEval.meetsRequiredFood, topBevMeets);
+    const extraIngredientReasonTags = selectedIngredients.length > 0
+      ? bestReasonData.reasonTagsByIngredient
+      : {};
+
+    const rating = getRating(effectiveFoodScore, ASSUMED_BEV_SCORE, finalEval.meetsRequiredFood, ASSUMED_BEV_MEETS);
 
     const baseCost = recipe.ingredients.reduce((sum, name) => {
       const ing = ingredientsByName.get(name);
@@ -254,9 +364,10 @@ export function rankRecipesForRare(
     results.push({
       recipe,
       extraIngredients: selectedIngredients,
+      extraIngredientReasonTags,
       allTags: finalEval.activeTags,
       cancelledTags: finalEval.cancelledTags,
-      foodScore: finalEval.foodScore,
+      foodScore: effectiveFoodScore,
       meetsRequiredFood: finalEval.meetsRequiredFood,
       rating,
       baseCost,
@@ -264,10 +375,10 @@ export function rankRecipesForRare(
     });
   }
 
-  // Step c: 排序 —— 极佳优先，然后按价格降序
+  // Step c: 排序 —— ExGood优先，然后按价格降序
   results.sort((a, b) => {
-    const aPerfect = a.rating === '极佳' ? 0 : 1;
-    const bPerfect = b.rating === '极佳' ? 0 : 1;
+    const aPerfect = a.rating === 'ExGood' ? 0 : 1;
+    const bPerfect = b.rating === 'ExGood' ? 0 : 1;
     if (aPerfect !== bPerfect) return aPerfect - bPerfect;
     return b.recipe.price - a.recipe.price;
   });

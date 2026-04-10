@@ -29,7 +29,9 @@ export interface IRecipe {
   name: string;
   description: string;
   ingredients: string[];
+  // 菜谱自带标签（标签本体中性，不代表“正面”）
   positiveTags: string[];
+  // 菜谱禁忌标签（命中会触发黑暗物质相关机制）
   negativeTags: string[];
   cooker: string;
   baseCookTime: number;
@@ -68,6 +70,7 @@ export interface ICustomerNormal {
   description: string;
   dlc: TDlc;
   places: TPlace[];
+  // 顾客喜好标签（偏好关系，不是标签本体“正面”）
   positiveTags: string[];
   beverageTags: string[];
 }
@@ -80,7 +83,9 @@ export interface ICustomerRare {
   places: TPlace[];
   price: number[];
   enduranceLimit: number;
+  // 顾客喜好标签（偏好关系）
   positiveTags: string[];
+  // 顾客厌恶标签（偏好关系）
   negativeTags: string[];
   beverageTags: string[];
   collection: boolean;
@@ -91,7 +96,7 @@ export interface ICustomerRare {
   };
 }
 
-export type TRating = '极佳' | '佳' | '一般';
+export type TRating = 'ExGood' | 'Good' | 'Normal' | 'Bad' | 'ExBad';
 
 export interface ICustomerScore {
   name: string;
@@ -117,6 +122,8 @@ export interface INormalBeverageResult {
 export interface IRareRecipeResult {
   recipe: IRecipe;
   extraIngredients: IIngredient[];
+  // 记录每个加料被选中的用途标签（例如 { 12: ['甜', '果味'] }）
+  extraIngredientReasonTags: Record<number, string[]>;
   allTags: string[];
   cancelledTags: string[];
   foodScore: number;

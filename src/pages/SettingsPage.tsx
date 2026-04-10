@@ -305,6 +305,7 @@ export function SettingsPage() {
                 editOwnership={editOwnership}
                 onCycleFilter={store.cycleIngredientFilter}
                 onToggleOwnership={store.toggleIngredientOwnership}
+                onSetQty={store.setIngredientQty}
                 onBatchOwned={(state) => store.setAllOwnedIngredients(state)}
                 onBelowQty={store.setIngredientsBelowQty}
               />
@@ -430,6 +431,7 @@ function IngredientFilterGrid({
   editOwnership,
   onCycleFilter,
   onToggleOwnership,
+  onSetQty,
   onBatchOwned,
   onBelowQty,
 }: {
@@ -442,10 +444,22 @@ function IngredientFilterGrid({
   editOwnership: boolean;
   onCycleFilter: (id: number) => void;
   onToggleOwnership: (id: number) => void;
+  onSetQty: (id: number, qty: number) => void;
   onBatchOwned: (state: FilterState) => void;
   onBelowQty: (qty: number, state: FilterState) => void;
 }) {
   const [qtyThreshold, setQtyThreshold] = useState(5);
+  const [editingQtyId, setEditingQtyId] = useState<number | null>(null);
+  const [editingQtyText, setEditingQtyText] = useState('');
+
+  const commitQty = () => {
+    if (editingQtyId == null) return;
+    const parsed = Number(editingQtyText);
+    const next = Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
+    onSetQty(editingQtyId, next);
+    setEditingQtyId(null);
+    setEditingQtyText('');
+  };
 
   const owned = items.filter((i) => ownedSet.has(i.id) && (!search || i.name.includes(search)));
   const unowned = items.filter((i) => !ownedSet.has(i.id) && (!search || i.name.includes(search)));
@@ -497,8 +511,36 @@ function IngredientFilterGrid({
                       ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500 text-white">已取得</span>
                       : <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${label.color}`}>{label.text}</span>
                     }
-                    <span className="text-[10px] text-muted-foreground">×{qty}</span>
                   </div>
+                </div>
+                <div
+                  className="w-16 h-8 rounded-md border border-border bg-background/80 flex items-center justify-center"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingQtyId(item.id);
+                    setEditingQtyText(String(qty));
+                  }}
+                >
+                  {editingQtyId === item.id ? (
+                    <input
+                      type="number"
+                      min={0}
+                      autoFocus
+                      className="h-7 w-14 rounded-md border border-input bg-transparent px-1 text-center text-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                      value={editingQtyText}
+                      onChange={(e) => setEditingQtyText(e.target.value)}
+                      onBlur={commitQty}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          commitQty();
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">×{qty}</span>
+                  )}
                 </div>
               </button>
             );

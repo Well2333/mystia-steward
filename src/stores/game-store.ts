@@ -16,6 +16,7 @@ import allIngredients from '@/data/ingredients.json';
  * Items not in the map default to 'disabled'
  */
 export type FilterState = 'all' | 'rare' | 'disabled';
+export type PriceSortOrder = 'asc' | 'desc';
 
 interface GameState {
   // === 通用设置 ===
@@ -34,6 +35,11 @@ interface GameState {
   rareSelectedPlace: TPlace | null;
   rareHiddenCustomerIds: number[];
   rareHideNonPerfect: boolean;
+  rareMaxExtraIngredients: number;
+  rareRecipePriceSort: PriceSortOrder;
+  rareBeveragePriceSort: PriceSortOrder;
+  rareFavoriteRecipesByCustomer: Record<string, number[]>;
+  rareFavoriteBeverages: Record<string, number[]>;
 
   // === 稀客词条选择持久化（不分地区） ===
   rareCustomerTags: Record<number, { food: string | null; bev: string | null }>;
@@ -63,6 +69,11 @@ interface GameState {
     rareHiddenCustomerIds: number[];
     rareCustomerTags: Record<number, { food: string | null; bev: string | null }>;
     rareDisabledIngredientIds: number[];
+    rareMaxExtraIngredients?: number;
+    rareRecipePriceSort?: PriceSortOrder;
+    rareBeveragePriceSort?: PriceSortOrder;
+    rareFavoriteRecipesByCustomer?: Record<string, number[]>;
+    rareFavoriteBeverages?: Record<string, number[]>;
   }) => void;
   setPopularFoodTag: (tag: string | null) => void;
   setPopularHateFoodTag: (tag: string | null) => void;
@@ -78,6 +89,7 @@ interface GameState {
   toggleRecipeOwnership: (id: number) => void;
   toggleBeverageOwnership: (id: number) => void;
   toggleIngredientOwnership: (id: number) => void;
+  setIngredientQty: (id: number, qty: number) => void;
   setAllOwnedRecipes: (state: FilterState) => void;
   setAllOwnedBeverages: (state: FilterState) => void;
   setAllOwnedIngredients: (state: FilterState) => void;
@@ -88,6 +100,11 @@ interface GameState {
   toggleRareHiddenCustomer: (id: number) => void;
   setRareHiddenCustomerIds: (ids: number[]) => void;
   setRareHideNonPerfect: (v: boolean) => void;
+  setRareMaxExtraIngredients: (v: number) => void;
+  toggleRareRecipePriceSort: () => void;
+  toggleRareBeveragePriceSort: () => void;
+  toggleRareFavoriteRecipe: (customerId: number, recipeId: number) => void;
+  toggleRareFavoriteBeverage: (contextKey: string, beverageId: number) => void;
   toggleRareIngredient: (id: number) => void;
   setRareCustomerTag: (customerId: number, food: string | null, bev: string | null) => void;
 
@@ -119,6 +136,11 @@ export const useGameStore = create<GameState>()(
       rareSelectedPlace: null,
       rareHiddenCustomerIds: [],
       rareHideNonPerfect: true,
+      rareMaxExtraIngredients: 4,
+      rareRecipePriceSort: 'desc',
+      rareBeveragePriceSort: 'desc',
+      rareFavoriteRecipesByCustomer: {},
+      rareFavoriteBeverages: {},
       rareCustomerTags: {},
       rareDisabledIngredientIds: [],
       ownedRecipeIds: [],
@@ -139,29 +161,67 @@ export const useGameStore = create<GameState>()(
 
         const resolvedBeverageIds = [...data.beverages.keys()];
 
-        // Set owned items and default all to 'all' state
-        const recipeFilter: Record<number, FilterState> = {};
-        for (const id of resolvedRecipeIds) recipeFilter[id] = 'all';
-        const beverageFilter: Record<number, FilterState> = {};
-        for (const id of resolvedBeverageIds) beverageFilter[id] = 'all';
-        const ingredientFilter: Record<number, FilterState> = {};
         const ownedIngredientQty: Record<number, number> = {};
         const ownedIngredientIds: number[] = [];
         for (const [id, qty] of data.ingredients) {
-          ingredientFilter[id] = 'all';
           ownedIngredientQty[id] = qty;
           ownedIngredientIds.push(id);
         }
 
-        set({
-          ownedRecipeIds: resolvedRecipeIds,
-          ownedBeverageIds: resolvedBeverageIds,
-          ownedIngredientIds,
-          ownedIngredientQty,
-          recipeFilter,
-          beverageFilter,
-          ingredientFilter,
-          rareDisabledIngredientIds: [],
+        set((s) => {
+          const prevOwnedRecipeSet = new Set(s.ownedRecipeIds);
+          const prevOwnedBeverageSet = new Set(s.ownedBeverageIds);
+          const prevOwnedIngredientSet = new Set(s.ownedIngredientIds);
+
+          const ownedRecipeSet = new Set(resolvedRecipeIds);
+          const ownedBeverageSet = new Set(resolvedBeverageIds);
+          const ownedIngredientSet = new Set(ownedIngredientIds);
+
+          const recipeFilter: Record<number, FilterState> = {};
+          for (const r of allRecipes as Array<{ id: number }>) {
+            const id = r.id;
+            if (!ownedRecipeSet.has(id)) {
+              recipeFilter[id] = 'disabled';
+              continue;
+            }
+            const prev = s.recipeFilter[id] ?? 'all';
+            const preserveModified = prevOwnedRecipeSet.has(id) && prev !== 'all';
+            recipeFilter[id] = preserveModified ? prev : 'all';
+          }
+
+          const beverageFilter: Record<number, FilterState> = {};
+          for (const b of allBeverages as Array<{ id: number }>) {
+            const id = b.id;
+            if (!ownedBeverageSet.has(id)) {
+              beverageFilter[id] = 'disabled';
+              continue;
+            }
+            const prev = s.beverageFilter[id] ?? 'all';
+            const preserveModified = prevOwnedBeverageSet.has(id) && prev !== 'all';
+            beverageFilter[id] = preserveModified ? prev : 'all';
+          }
+
+          const ingredientFilter: Record<number, FilterState> = {};
+          for (const i of allIngredients as Array<{ id: number }>) {
+            const id = i.id;
+            if (!ownedIngredientSet.has(id)) {
+              ingredientFilter[id] = 'disabled';
+              continue;
+            }
+            const prev = s.ingredientFilter[id] ?? 'all';
+            const preserveModified = prevOwnedIngredientSet.has(id) && prev !== 'all';
+            ingredientFilter[id] = preserveModified ? prev : 'all';
+          }
+
+          return {
+            ownedRecipeIds: resolvedRecipeIds,
+            ownedBeverageIds: resolvedBeverageIds,
+            ownedIngredientIds,
+            ownedIngredientQty,
+            recipeFilter,
+            beverageFilter,
+            ingredientFilter,
+          };
         });
       },
 
@@ -176,6 +236,11 @@ export const useGameStore = create<GameState>()(
         popularFoodTag: data.popularFoodTag,
         popularHateFoodTag: data.popularHateFoodTag,
         rareHideNonPerfect: data.rareHideNonPerfect,
+        rareMaxExtraIngredients: Math.max(0, Math.min(4, data.rareMaxExtraIngredients ?? 4)),
+        rareRecipePriceSort: data.rareRecipePriceSort === 'asc' ? 'asc' : 'desc',
+        rareBeveragePriceSort: data.rareBeveragePriceSort === 'asc' ? 'asc' : 'desc',
+        rareFavoriteRecipesByCustomer: data.rareFavoriteRecipesByCustomer ?? {},
+        rareFavoriteBeverages: data.rareFavoriteBeverages ?? {},
         rareHiddenCustomerIds: data.rareHiddenCustomerIds,
         rareCustomerTags: data.rareCustomerTags,
         rareDisabledIngredientIds: data.rareDisabledIngredientIds,
@@ -271,9 +336,21 @@ export const useGameStore = create<GameState>()(
           } else {
             owned.add(id);
             filter[id] = 'all';
-            qty[id] = 0;
+            qty[id] = 1;
           }
           return { ownedIngredientIds: [...owned], ingredientFilter: filter, ownedIngredientQty: qty };
+        }),
+
+      setIngredientQty: (id, nextQty) =>
+        set((s) => {
+          if (!s.ownedIngredientIds.includes(id)) return s;
+          const qty = Number.isFinite(nextQty) ? Math.max(0, Math.floor(nextQty)) : 0;
+          return {
+            ownedIngredientQty: {
+              ...s.ownedIngredientQty,
+              [id]: qty,
+            },
+          };
         }),
 
       setAllOwnedRecipes: (state) =>
@@ -323,6 +400,42 @@ export const useGameStore = create<GameState>()(
         })),
       setRareHiddenCustomerIds: (ids) => set({ rareHiddenCustomerIds: ids }),
       setRareHideNonPerfect: (v) => set({ rareHideNonPerfect: v }),
+      setRareMaxExtraIngredients: (v) => set({ rareMaxExtraIngredients: Math.max(0, Math.min(4, v)) }),
+      toggleRareRecipePriceSort: () =>
+        set((s) => ({
+          rareRecipePriceSort: s.rareRecipePriceSort === 'asc' ? 'desc' : 'asc',
+        })),
+      toggleRareBeveragePriceSort: () =>
+        set((s) => ({
+          rareBeveragePriceSort: s.rareBeveragePriceSort === 'asc' ? 'desc' : 'asc',
+        })),
+      toggleRareFavoriteRecipe: (customerId, recipeId) =>
+        set((s) => {
+          const customerKey = String(customerId);
+          const current = s.rareFavoriteRecipesByCustomer[customerKey] ?? [];
+          const next = current.includes(recipeId)
+            ? current.filter((id) => id !== recipeId)
+            : [recipeId, ...current];
+          return {
+            rareFavoriteRecipesByCustomer: {
+              ...s.rareFavoriteRecipesByCustomer,
+              [customerKey]: next,
+            },
+          };
+        }),
+      toggleRareFavoriteBeverage: (contextKey, beverageId) =>
+        set((s) => {
+          const current = s.rareFavoriteBeverages[contextKey] ?? [];
+          const next = current.includes(beverageId)
+            ? current.filter((id) => id !== beverageId)
+            : [beverageId, ...current];
+          return {
+            rareFavoriteBeverages: {
+              ...s.rareFavoriteBeverages,
+              [contextKey]: next,
+            },
+          };
+        }),
 
       setRareCustomerTag: (customerId, food, bev) =>
         set((s) => ({

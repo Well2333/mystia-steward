@@ -1,7 +1,6 @@
 import allRecipes from '../src/data/recipes.json';
-import allBeverages from '../src/data/beverages.json';
 import allIngredients from '../src/data/ingredients.json';
-import { getAllRareCustomers, rankBeveragesForRare, rankRecipesForRare } from '../src/lib/rare-recommend';
+import { getAllRareCustomers, rankRecipesForRare } from '../src/lib/rare-recommend';
 import { useGameStore, type FilterState } from '../src/stores/game-store';
 import type { ICustomerRare, IIngredient, IRecipe } from '../src/lib/types';
 
@@ -20,12 +19,10 @@ interface ScenarioStats {
 }
 
 const recipes = allRecipes as IRecipe[];
-const beverages = allBeverages as Array<{ id: number }>;
 const ingredients = allIngredients as IIngredient[];
 const rareCustomers = getAllRareCustomers() as ICustomerRare[];
 
 const allRecipeIds = new Set(recipes.map((r) => r.id));
-const allBeverageIds = new Set(beverages.map((b) => b.id));
 const ingredientByName = new Map(ingredients.map((i) => [i.name, i]));
 
 function buildIngredientFilter(state: FilterState): Record<number, FilterState> {
@@ -84,10 +81,6 @@ function runScenario(scenario: Scenario): { stats: ScenarioStats; errors: string
       for (const requiredBevTag of customer.beverageTags) {
         tagPairsChecked += 1;
 
-        const beverageResults = rankBeveragesForRare(customer, requiredBevTag, allBeverageIds);
-        const topBevScore = beverageResults[0]?.bevScore ?? 0;
-        const topBevMeets = beverageResults[0]?.meetsRequiredBev ?? false;
-
         const recipeResults = rankRecipesForRare(
           customer,
           requiredFoodTag,
@@ -97,8 +90,6 @@ function runScenario(scenario: Scenario): { stats: ScenarioStats; errors: string
           disabledIngredientIds,
           null,
           null,
-          topBevScore,
-          topBevMeets,
         );
 
         for (const result of recipeResults) {
@@ -152,10 +143,6 @@ function runTargetedScenario(): { summary: string; errors: string[] } {
     ingredients.filter((i) => !excludedNames.has(i.name)).map((i) => i.id),
   );
 
-  const beverageResults = rankBeveragesForRare(customer, '可加冰', allBeverageIds);
-  const topBevScore = beverageResults[0]?.bevScore ?? 0;
-  const topBevMeets = beverageResults[0]?.meetsRequiredBev ?? false;
-
   const recipeResults = rankRecipesForRare(
     customer,
     '猎奇',
@@ -165,8 +152,6 @@ function runTargetedScenario(): { summary: string; errors: string[] } {
     new Set<number>(),
     null,
     null,
-    topBevScore,
-    topBevMeets,
   );
 
   const excludedHits = recipeResults.filter(

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Star } from 'lucide-react';
 import { useGameStore } from '@/stores/game-store';
 import { RegionSelector } from '@/components/RegionSelector';
 import { TagBadge } from '@/components/TagBadge';
@@ -7,6 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -15,86 +23,189 @@ import {
   rankBeveragesForRare,
 } from '@/lib/rare-recommend';
 import { recipeIndexMap, beverageIndexMap, rareCustomerIndexMap } from '@/lib/sprite-index';
-import type { ICustomerRare, IRareRecipeResult, TPlace } from '@/lib/types';
+import type { ICustomerRare, IRareRecipeResult, TPlace, TRating } from '@/lib/types';
 
-const RATING_COLORS: Record<string, string> = {
-  极佳: 'bg-pink-500 text-white',
-  佳: 'bg-orange-500 text-white',
-  一般: 'bg-gray-400 text-white',
+const RATING_COLORS: Record<TRating, string> = {
+  ExGood: 'bg-pink-500 text-white',
+  Good: 'bg-orange-500 text-white',
+  Normal: 'bg-green-500 text-white',
+  Bad: 'bg-purple-500 text-white',
+  ExBad: 'bg-gray-900 text-white',
+};
+
+const RATING_LABELS: Record<TRating, string> = {
+  ExGood: '极佳',
+  Good: '佳',
+  Normal: '普通',
+  Bad: '差',
+  ExBad: '极差',
 };
 const EMPTY_BEVERAGES: ReturnType<typeof rankBeveragesForRare> = [];
 
+function buildRareContextKey(customerId: number, foodTag: string, bevTag: string): string {
+  return `${customerId}|${foodTag}|${bevTag}`;
+}
+
 
 export function RarePage() {
-  const store = useGameStore();
-  const place = store.rareSelectedPlace;
+  const place = useGameStore((state) => state.rareSelectedPlace);
+  const rareHiddenCustomerIds = useGameStore((state) => state.rareHiddenCustomerIds);
+  const rareCustomerTags = useGameStore((state) => state.rareCustomerTags);
+  const rareHideNonPerfect = useGameStore((state) => state.rareHideNonPerfect);
+  const rareMaxExtraIngredients = useGameStore((state) => state.rareMaxExtraIngredients);
+  const rareRecipePriceSort = useGameStore((state) => state.rareRecipePriceSort);
+  const rareBeveragePriceSort = useGameStore((state) => state.rareBeveragePriceSort);
+  const rareFavoriteRecipesByCustomer = useGameStore((state) => state.rareFavoriteRecipesByCustomer);
+  const rareFavoriteBeverages = useGameStore((state) => state.rareFavoriteBeverages);
+  const rareDisabledIngredientIds = useGameStore((state) => state.rareDisabledIngredientIds);
+  const popularFoodTag = useGameStore((state) => state.popularFoodTag);
+  const popularHateFoodTag = useGameStore((state) => state.popularHateFoodTag);
+  const ownedIngredientQty = useGameStore((state) => state.ownedIngredientQty);
+  const setRareSelectedPlace = useGameStore((state) => state.setRareSelectedPlace);
+  const setRareCustomerTag = useGameStore((state) => state.setRareCustomerTag);
+  const toggleRareHiddenCustomer = useGameStore((state) => state.toggleRareHiddenCustomer);
+  const setRareHideNonPerfect = useGameStore((state) => state.setRareHideNonPerfect);
+  const setRareMaxExtraIngredients = useGameStore((state) => state.setRareMaxExtraIngredients);
+  const toggleRareRecipePriceSort = useGameStore((state) => state.toggleRareRecipePriceSort);
+  const toggleRareBeveragePriceSort = useGameStore((state) => state.toggleRareBeveragePriceSort);
+  const toggleRareFavoriteRecipe = useGameStore((state) => state.toggleRareFavoriteRecipe);
+  const toggleRareFavoriteBeverage = useGameStore((state) => state.toggleRareFavoriteBeverage);
+  const getRareRecipeIds = useGameStore((state) => state.getRareRecipeIds);
+  const getRareBeverageIds = useGameStore((state) => state.getRareBeverageIds);
+  const getRareIngredientIds = useGameStore((state) => state.getRareIngredientIds);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [showFilter, setShowFilter] = useState(false);
 
   const allCustomers = useMemo(() => (place ? getRareCustomersByPlace(place) : []), [place]);
   const visibleCustomers = useMemo(
-    () => allCustomers.filter((c) => !store.rareHiddenCustomerIds.includes(c.id)),
-    [allCustomers, store.rareHiddenCustomerIds],
+    () => allCustomers.filter((c) => !rareHiddenCustomerIds.includes(c.id)),
+    [allCustomers, rareHiddenCustomerIds],
   );
   const selectedCustomer = useMemo(
     () => allCustomers.find((c) => c.id === selectedCustomerId) ?? null,
     [allCustomers, selectedCustomerId],
   );
 
-  const savedTags = selectedCustomerId != null ? store.rareCustomerTags[selectedCustomerId] : null;
+  const savedTags = selectedCustomerId != null ? rareCustomerTags[selectedCustomerId] : null;
   const requiredFoodTag = savedTags?.food ?? null;
   const requiredBevTag = savedTags?.bev ?? null;
 
-  const handlePlaceChange = (p: TPlace) => { store.setRareSelectedPlace(p); setSelectedCustomerId(null); };
+  const handlePlaceChange = (p: TPlace) => { setRareSelectedPlace(p); setSelectedCustomerId(null); };
   const handleSelectCustomer = (c: ICustomerRare) => { setSelectedCustomerId(c.id); };
-  const setFoodTag = (tag: string) => { if (selectedCustomerId != null) store.setRareCustomerTag(selectedCustomerId, tag, requiredBevTag); };
-  const setBevTag = (tag: string) => { if (selectedCustomerId != null) store.setRareCustomerTag(selectedCustomerId, requiredFoodTag, tag); };
+  const setFoodTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, tag, requiredBevTag); };
+  const setBevTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, requiredFoodTag, tag); };
 
-  const rareRecipeIds = useMemo(() => store.getRareRecipeIds(), [store.recipeFilter]);
-  const rareBevIds = useMemo(() => store.getRareBeverageIds(), [store.beverageFilter]);
-  const rareIngredientIds = useMemo(() => store.getRareIngredientIds(), [store.ingredientFilter, store.ownedIngredientIds]);
+  const rareRecipeIds = getRareRecipeIds();
+  const rareBevIds = getRareBeverageIds();
+  const rareIngredientIds = getRareIngredientIds();
 
   const rawBevResults = useMemo(() => {
     if (!selectedCustomer || !requiredBevTag) return EMPTY_BEVERAGES;
     return rankBeveragesForRare(selectedCustomer, requiredBevTag, new Set(rareBevIds));
   }, [selectedCustomer, requiredBevTag, rareBevIds]);
 
-  const topBevScore = rawBevResults[0]?.bevScore ?? 0;
-  const topBevMeets = rawBevResults[0]?.meetsRequiredBev ?? false;
+  const rawRecipeResults = useMemo(() => {
+    if (!selectedCustomer || !requiredFoodTag || !requiredBevTag) return [];
+    return rankRecipesForRare(
+      selectedCustomer,
+      requiredFoodTag,
+      requiredBevTag,
+      new Set(rareRecipeIds),
+      new Set(rareIngredientIds),
+      new Set(rareDisabledIngredientIds),
+      popularFoodTag,
+      popularHateFoodTag,
+      ownedIngredientQty,
+    );
+  }, [
+    selectedCustomer,
+    requiredFoodTag,
+    requiredBevTag,
+    rareRecipeIds,
+    rareIngredientIds,
+    rareDisabledIngredientIds,
+    popularFoodTag,
+    popularHateFoodTag,
+    ownedIngredientQty,
+  ]);
 
-  const [rawRecipeResults, setRawRecipeResults] = useState<IRareRecipeResult[]>([]);
-  const [recipeLoading, setRecipeLoading] = useState(false);
-  const computeIdRef = useRef(0);
+  const currentContextKey = useMemo(() => {
+    if (!selectedCustomer || !requiredFoodTag || !requiredBevTag) return null;
+    return buildRareContextKey(selectedCustomer.id, requiredFoodTag, requiredBevTag);
+  }, [selectedCustomer, requiredFoodTag, requiredBevTag]);
 
-  useEffect(() => {
-    if (!selectedCustomer || !requiredFoodTag || !requiredBevTag) {
-      setRawRecipeResults((prev) => (prev.length === 0 ? prev : []));
-      setRecipeLoading(false);
-      return;
-    }
-    const id = ++computeIdRef.current;
-    setRecipeLoading(true);
-    // 使用 setTimeout 将计算推迟到下一帧，避免阻塞渲染
-    const timer = setTimeout(() => {
-      const results = rankRecipesForRare(selectedCustomer, requiredFoodTag, requiredBevTag, new Set(rareRecipeIds), new Set(rareIngredientIds), new Set(store.rareDisabledIngredientIds), store.popularFoodTag, store.popularHateFoodTag, topBevScore, topBevMeets);
-      if (id === computeIdRef.current) {
-        setRawRecipeResults(results);
-        setRecipeLoading(false);
-      }
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [selectedCustomer, requiredFoodTag, requiredBevTag, rareRecipeIds, rareIngredientIds, store.rareDisabledIngredientIds, store.popularFoodTag, store.popularHateFoodTag, topBevScore, topBevMeets]);
+  const favoriteRecipeKeys = useMemo(() => {
+    if (!selectedCustomer) return [];
+    return rareFavoriteRecipesByCustomer[String(selectedCustomer.id)] ?? [];
+  }, [selectedCustomer, rareFavoriteRecipesByCustomer]);
+  const favoriteRecipeKeySet = useMemo(() => new Set(favoriteRecipeKeys), [favoriteRecipeKeys]);
+
+  const favoriteBeverageIds = useMemo(
+    () => (currentContextKey ? rareFavoriteBeverages[currentContextKey] ?? [] : []),
+    [currentContextKey, rareFavoriteBeverages],
+  );
+  const favoriteBeverageIdSet = useMemo(() => new Set(favoriteBeverageIds), [favoriteBeverageIds]);
 
   const recipeResults = useMemo(() => {
-    if (store.rareHideNonPerfect) {
-      return rawRecipeResults.filter((r) => r.rating === '极佳');
-    }
-    return rawRecipeResults;
-  }, [rawRecipeResults, store.rareHideNonPerfect]);
+    const filtered = rawRecipeResults.map((r, idx) => ({ r, idx }));
 
-  const beverageResults = rawBevResults;
+    const favoriteRank = new Map(favoriteRecipeKeys.map((id, idx) => [id, idx]));
+    const priceDirection = rareRecipePriceSort === 'asc' ? 1 : -1;
 
-  const hasResults = requiredFoodTag && requiredBevTag && (recipeLoading || recipeResults.length > 0 || rawBevResults.length > 0);
+    const favoriteItems = filtered.filter(({ r }) => favoriteRank.has(r.recipe.id));
+    favoriteItems.sort((a, b) => {
+      const aFavRank = favoriteRank.get(a.r.recipe.id) ?? Infinity;
+      const bFavRank = favoriteRank.get(b.r.recipe.id) ?? Infinity;
+      if (aFavRank !== bFavRank) return aFavRank - bFavRank;
+      if (a.r.recipe.price !== b.r.recipe.price) {
+        return priceDirection * (a.r.recipe.price - b.r.recipe.price);
+      }
+      return a.idx - b.idx;
+    });
+
+    const normalItems = filtered.filter(({ r }) => !favoriteRank.has(r.recipe.id));
+    normalItems.sort((a, b) => {
+      const aMatches = (!rareHideNonPerfect || a.r.rating === 'ExGood') && a.r.extraIngredients.length <= rareMaxExtraIngredients;
+      const bMatches = (!rareHideNonPerfect || b.r.rating === 'ExGood') && b.r.extraIngredients.length <= rareMaxExtraIngredients;
+      if (aMatches !== bMatches) return aMatches ? -1 : 1;
+      if (a.r.recipe.price !== b.r.recipe.price) {
+        return priceDirection * (a.r.recipe.price - b.r.recipe.price);
+      }
+      return a.idx - b.idx;
+    });
+
+    return [...favoriteItems, ...normalItems.filter((x) => (!rareHideNonPerfect || x.r.rating === 'ExGood') && x.r.extraIngredients.length <= rareMaxExtraIngredients)].map((x) => x.r);
+  }, [
+    rawRecipeResults,
+    rareHideNonPerfect,
+    rareMaxExtraIngredients,
+    favoriteRecipeKeys,
+    rareRecipePriceSort,
+  ]);
+
+  const beverageResults = useMemo(() => {
+    const withMeta = rawBevResults.map((b, idx) => ({ b, idx }));
+    const favoriteRank = new Map(favoriteBeverageIds.map((id, idx) => [id, idx]));
+    const priceDirection = rareBeveragePriceSort === 'asc' ? 1 : -1;
+
+    withMeta.sort((a, b) => {
+      const aFavRank = favoriteRank.get(a.b.beverage.id);
+      const bFavRank = favoriteRank.get(b.b.beverage.id);
+      const aFav = aFavRank !== undefined;
+      const bFav = bFavRank !== undefined;
+      if (aFav !== bFav) return aFav ? -1 : 1;
+      if (aFav && bFav && aFavRank !== bFavRank) return aFavRank - bFavRank;
+
+      if (a.b.beverage.price !== b.b.beverage.price) {
+        return priceDirection * (a.b.beverage.price - b.b.beverage.price);
+      }
+      return a.idx - b.idx;
+    });
+
+    return withMeta.map((x) => x.b);
+  }, [rawBevResults, favoriteBeverageIds, rareBeveragePriceSort]);
+
+  const hasResults = requiredFoodTag && requiredBevTag && (recipeResults.length > 0 || beverageResults.length > 0);
 
   return (
     <div className="space-y-4">
@@ -117,9 +228,9 @@ export function RarePage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {allCustomers.map((c) => (
                 <div key={c.id} className="flex items-center gap-2 text-sm">
-                  <Switch checked={!store.rareHiddenCustomerIds.includes(c.id)} onCheckedChange={() => store.toggleRareHiddenCustomer(c.id)} />
+                  <Switch checked={!rareHiddenCustomerIds.includes(c.id)} onCheckedChange={() => toggleRareHiddenCustomer(c.id)} />
                   <Sprite type="customer_rare" index={rareCustomerIndexMap.get(c.id) ?? 0} size={28} className="rounded" />
-                  <span className={store.rareHiddenCustomerIds.includes(c.id) ? 'text-muted-foreground line-through' : ''}>{c.name}</span>
+                  <span className={rareHiddenCustomerIds.includes(c.id) ? 'text-muted-foreground line-through' : ''}>{c.name}</span>
                 </div>
               ))}
             </div>
@@ -132,7 +243,7 @@ export function RarePage() {
         <div className="flex gap-2 flex-wrap">
           {visibleCustomers.map((c) => {
             const isSelected = selectedCustomerId === c.id;
-            const hasTags = store.rareCustomerTags[c.id]?.food && store.rareCustomerTags[c.id]?.bev;
+            const hasTags = rareCustomerTags[c.id]?.food && rareCustomerTags[c.id]?.bev;
             return (
               <button key={c.id} onClick={() => handleSelectCustomer(c)}
                 className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all cursor-pointer relative ${isSelected ? 'bg-primary/10 ring-2 ring-primary shadow-sm' : 'hover:bg-secondary'}`}>
@@ -158,11 +269,11 @@ export function RarePage() {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <span className="text-xs text-muted-foreground mr-1">喜好:</span>
-                  {selectedCustomer.positiveTags.map((t) => <TagBadge key={t} tag={t} variant="positive" />)}
+                  {selectedCustomer.positiveTags.map((t) => <TagBadge key={t} tag={t} variant="preferred" />)}
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <span className="text-xs text-muted-foreground mr-1">厌恶:</span>
-                  {selectedCustomer.negativeTags.map((t) => <TagBadge key={t} tag={t} variant="negative" />)}
+                  {selectedCustomer.negativeTags.map((t) => <TagBadge key={t} tag={t} variant="disliked" />)}
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <span className="text-xs text-muted-foreground mr-1">酒水:</span>
@@ -200,31 +311,73 @@ export function RarePage() {
           <div className="lg:col-span-3 space-y-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h2 className="text-base font-semibold">
-                菜谱 {recipeLoading ? '(计算中...)' : `(${recipeResults.length}${store.rareHideNonPerfect ? ` / ${rawRecipeResults.length}` : ''})`}
+                菜谱 ({recipeResults.length} / {rawRecipeResults.length})
               </h2>
-              <div className="flex items-center gap-2">
-                <Switch checked={store.rareHideNonPerfect} onCheckedChange={store.setRareHideNonPerfect} />
-                <Label className="text-xs text-muted-foreground whitespace-nowrap">隐藏非极佳</Label>
-              </div>
             </div>
-            {recipeLoading ? (
-              <div className="flex items-center justify-center py-16 text-muted-foreground">
-                <span className="animate-pulse">正在计算推荐菜谱...</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs py-1">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">隐藏非极佳</Label>
+                <Switch checked={rareHideNonPerfect} onCheckedChange={setRareHideNonPerfect} />
               </div>
-            ) : (
-              <ScrollArea className="h-[500px]">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pr-4">
-                  {recipeResults.map((r, idx) => (
-                    <RareRecipeCard key={r.recipe.id} r={r} idx={idx} customer={selectedCustomer!} />
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
+              <Separator
+                orientation="vertical"
+                className="mx-0.5 data-vertical:h-7 data-vertical:self-center"
+              />
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">最多加料</Label>
+                <Select
+                  value={String(rareMaxExtraIngredients)}
+                  onValueChange={(value) => setRareMaxExtraIngredients(Number(value))}
+                >
+                  <SelectTrigger className="h-7 w-[88px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0 个</SelectItem>
+                    <SelectItem value="1">1 个</SelectItem>
+                    <SelectItem value="2">2 个</SelectItem>
+                    <SelectItem value="3">3 个</SelectItem>
+                    <SelectItem value="4">4 个</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Separator
+                orientation="vertical"
+                className="mx-0.5 data-vertical:h-7 data-vertical:self-center"
+              />
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={toggleRareRecipePriceSort}>
+                价格{rareRecipePriceSort === 'asc' ? '升序' : '降序'}
+              </Button>
+            </div>
+            <ScrollArea className="h-[500px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pr-4">
+                {recipeResults.map((r, idx) => (
+                  <RareRecipeCard
+                    key={`${r.recipe.id}-${idx}`}
+                    r={r}
+                    idx={idx}
+                    customer={selectedCustomer!}
+                    isFavorite={favoriteRecipeKeySet.has(r.recipe.id)}
+                    onToggleFavorite={() => {
+                      if (!selectedCustomer) return;
+                      toggleRareFavoriteRecipe(selectedCustomer.id, r.recipe.id);
+                    }}
+                  />
+                ))}
+              </div>
+            </ScrollArea>
           </div>
 
           {/* 酒水区域 */}
           <div className="lg:col-span-2 space-y-2">
-            <h2 className="text-base font-semibold">酒水 ({beverageResults.length})</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-base font-semibold">酒水 ({beverageResults.length})</h2>
+            </div>
+            <div className="flex items-center gap-2 text-xs py-1">
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={toggleRareBeveragePriceSort}>
+                价格{rareBeveragePriceSort === 'asc' ? '升序' : '降序'}
+              </Button>
+            </div>
             <ScrollArea className="h-[500px]">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-1.5 pr-4">
                 {beverageResults.map((b, idx) => (
@@ -235,6 +388,17 @@ export function RarePage() {
                         <span className="text-[10px] font-mono text-muted-foreground">#{idx + 1}</span>
                         <span className="text-sm font-medium truncate">{b.beverage.name}</span>
                         <span className="text-xs text-primary">¥{b.beverage.price}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!currentContextKey) return;
+                            toggleRareFavoriteBeverage(currentContextKey, b.beverage.id);
+                          }}
+                          className="ml-auto inline-flex items-center justify-center rounded p-0.5 text-amber-500 hover:bg-amber-100"
+                          aria-label={favoriteBeverageIdSet.has(b.beverage.id) ? '取消收藏酒水' : '收藏酒水'}
+                        >
+                          <Star className={`size-3.5 ${favoriteBeverageIdSet.has(b.beverage.id) ? 'fill-current' : ''}`} />
+                        </button>
                       </div>
                       <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <span>匹配 {b.bevScore}</span>
@@ -260,19 +424,19 @@ export function RarePage() {
 function buildTagDetails(
   r: IRareRecipeResult,
   customer: ICustomerRare,
-): Array<{ tag: string; isExtra: boolean; isPositive: boolean; isNegative: boolean }> {
+): Array<{ tag: string; isExtra: boolean; isPreferred: boolean; isDisliked: boolean; isCancelled: boolean }> {
   const recipeTags = new Set(r.recipe.positiveTags);
 
-  const details: Array<{ tag: string; isExtra: boolean; isPositive: boolean; isNegative: boolean }> = [];
+  const details: Array<{ tag: string; isExtra: boolean; isPreferred: boolean; isDisliked: boolean; isCancelled: boolean }> = [];
   const seen = new Set<string>();
 
   for (const tag of r.allTags) {
     if (seen.has(tag)) continue;
     seen.add(tag);
     const isExtra = !recipeTags.has(tag);
-    const isPositive = customer.positiveTags.includes(tag);
-    const isNegative = customer.negativeTags.includes(tag);
-    details.push({ tag, isExtra, isPositive, isNegative });
+    const isPreferred = customer.positiveTags.includes(tag);
+    const isDisliked = customer.negativeTags.includes(tag);
+    details.push({ tag, isExtra, isPreferred, isDisliked, isCancelled: false });
   }
 
   // Also show cancelled tags
@@ -280,17 +444,19 @@ function buildTagDetails(
     if (seen.has(tag)) continue;
     seen.add(tag);
     const isExtra = !recipeTags.has(tag);
-    const isNegative = customer.negativeTags.includes(tag);
-    details.push({ tag: `${tag}(抵消)`, isExtra, isPositive: false, isNegative });
+    const isDisliked = customer.negativeTags.includes(tag);
+    details.push({ tag: `${tag}(抵消)`, isExtra, isPreferred: false, isDisliked, isCancelled: true });
   }
 
   return details;
 }
 
-function RareRecipeCard({ r, idx, customer }: {
+function RareRecipeCard({ r, idx, customer, isFavorite, onToggleFavorite }: {
   r: IRareRecipeResult;
   idx: number;
   customer: ICustomerRare;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
 }) {
   const [showTags, setShowTags] = useState(false);
   const profit = r.recipe.price - r.baseCost - r.extraCost;
@@ -311,7 +477,15 @@ function RareRecipeCard({ r, idx, customer }: {
           <div className="flex items-center gap-1 flex-wrap">
             <span className="text-[10px] font-mono text-muted-foreground">#{idx + 1}</span>
             <span className="text-sm font-semibold truncate">{r.recipe.name}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${RATING_COLORS[r.rating]}`}>{r.rating}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${RATING_COLORS[r.rating]}`}>{RATING_LABELS[r.rating]}</span>
+            <button
+              type="button"
+              onClick={onToggleFavorite}
+              className="ml-auto inline-flex items-center justify-center rounded p-0.5 text-amber-500 hover:bg-amber-100"
+              aria-label={isFavorite ? '取消收藏菜品' : '收藏菜品'}
+            >
+              <Star className={`size-3.5 ${isFavorite ? 'fill-current' : ''}`} />
+            </button>
           </div>
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground flex-wrap">
             <span className="text-primary font-medium">¥{r.recipe.price}</span>
@@ -325,9 +499,15 @@ function RareRecipeCard({ r, idx, customer }: {
             {r.recipe.ingredients.map((name) => (
               <span key={name} className="text-[10px] px-1 py-0 rounded bg-green-100 text-green-800 border border-green-200">{name}</span>
             ))}
-            {r.extraIngredients.map((i) => (
-              <span key={i.id} className="text-[10px] px-1 py-0 rounded bg-yellow-100 text-yellow-800 border border-yellow-300">+{i.name}</span>
-            ))}
+            {r.extraIngredients.map((i) => {
+              const reasonTags = r.extraIngredientReasonTags[i.id] ?? [];
+              const reasonText = reasonTags.length > 0 ? `(${reasonTags.join(',')})` : '';
+              return (
+                <span key={i.id} className="text-[10px] px-1 py-0 rounded bg-yellow-100 text-yellow-800 border border-yellow-300">
+                  +{i.name}{reasonText}
+                </span>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -338,11 +518,12 @@ function RareRecipeCard({ r, idx, customer }: {
           <div className="flex flex-wrap gap-1">
             {tagDetails.map((td) => {
               let cls = 'bg-gray-100 text-gray-700 border-gray-200';
-              if (td.isPositive) cls = 'bg-pink-100 text-pink-800 border-pink-200';
-              if (td.isNegative) cls = 'bg-amber-800/20 text-amber-900 border-amber-400';
+              if (td.isPreferred) cls = 'bg-pink-100 text-pink-800 border-pink-200';
+              if (td.isDisliked) cls = 'bg-red-100 text-red-800 border-red-200';
+              if (td.isCancelled) cls = 'bg-[#8B5E3C]/15 text-[#8B5E3C] border-[#8B5E3C]/40 line-through';
               return (
                 <span key={td.tag} className={`text-[10px] px-1.5 py-0.5 rounded border ${cls}`}>
-                  {td.isExtra && '+'}{td.tag}{td.isNegative && ' ✕'}
+                  {td.isExtra && '+'}{td.tag}{td.isDisliked && !td.isCancelled && ' ✕'}
                 </span>
               );
             })}

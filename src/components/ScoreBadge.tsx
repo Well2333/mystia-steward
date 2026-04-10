@@ -1,4 +1,4 @@
-/** Score badge with color coding: gray=0 (一般), orange=1~2 (佳), pink=3+ (极佳) */
+/** 普客匹配分颜色：0灰、1~2橙、3+粉 */
 function getScoreColor(score: number) {
   if (score >= 3) return 'bg-pink-100 text-pink-700';
   if (score >= 1) return 'bg-orange-100 text-orange-700';

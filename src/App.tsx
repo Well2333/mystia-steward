@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { CircleHelp, ExternalLink } from 'lucide-react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router';
 import { UsageGuideModal } from '@/components/UsageGuideModal';
@@ -30,16 +30,8 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
 export default function App() {
   const guideAutoOpenDisabled = useGameStore((state) => state.guideAutoOpenDisabled);
   const setGuideAutoOpenDisabled = useGameStore((state) => state.setGuideAutoOpenDisabled);
-  const [guideOpen, setGuideOpen] = useState(false);
-  const [hasInitializedGuide, setHasInitializedGuide] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(() => !guideAutoOpenDisabled);
   const appCommitHash = __APP_COMMIT_HASH__;
-
-  useEffect(() => {
-    if (hasInitializedGuide) return;
-
-    setHasInitializedGuide(true);
-    if (!guideAutoOpenDisabled) setGuideOpen(true);
-  }, [guideAutoOpenDisabled, hasInitializedGuide]);
 
   return (
     <BrowserRouter>
@@ -55,7 +47,7 @@ export default function App() {
             <NavItem to="/settings">设置</NavItem>
             <div className="ml-auto flex items-center gap-2">
               <span className="hidden sm:inline text-[11px] text-muted-foreground px-2">
-                {appCommitHash}
+                更新时间 {appCommitHash}
               </span>
               <Button
                 variant="outline"

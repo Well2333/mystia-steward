@@ -4,20 +4,22 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
-function resolveGitCommitHash() {
+function resolveGitCommitTime() {
   try {
-    return execSync('git rev-parse --short HEAD').toString().trim()
+    return execSync('git log -1 --date=format:"%Y-%m-%d %H:%M" --format=%cd')
+      .toString()
+      .trim()
   } catch {
     return 'unknown'
   }
 }
 
-const appCommitHash = resolveGitCommitHash()
+const appVersion = resolveGitCommitTime()
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   define: {
-    __APP_COMMIT_HASH__: JSON.stringify(appCommitHash),
+    __APP_COMMIT_HASH__: JSON.stringify(appVersion),
   },
   resolve: {
     alias: {
