@@ -60,6 +60,7 @@ export function RarePage() {
   const rareDisabledIngredientIds = useGameStore((state) => state.rareDisabledIngredientIds);
   const popularFoodTag = useGameStore((state) => state.popularFoodTag);
   const popularHateFoodTag = useGameStore((state) => state.popularHateFoodTag);
+  const showRecipeProfit = useGameStore((state) => state.showRecipeProfit);
   const ownedIngredientQty = useGameStore((state) => state.ownedIngredientQty);
   const setRareSelectedPlace = useGameStore((state) => state.setRareSelectedPlace);
   const setRareCustomerTag = useGameStore((state) => state.setRareCustomerTag);
@@ -185,16 +186,12 @@ export function RarePage() {
 
   const beverageResults = useMemo(() => {
     const withMeta = rawBevResults.map((b, idx) => ({ b, idx }));
-    const favoriteRank = new Map(favoriteBeverageIds.map((id, idx) => [id, idx]));
     const priceDirection = rareBeveragePriceSort === 'asc' ? 1 : -1;
 
     withMeta.sort((a, b) => {
-      const aFavRank = favoriteRank.get(a.b.beverage.id);
-      const bFavRank = favoriteRank.get(b.b.beverage.id);
-      const aFav = aFavRank !== undefined;
-      const bFav = bFavRank !== undefined;
-      if (aFav !== bFav) return aFav ? -1 : 1;
-      if (aFav && bFav && aFavRank !== bFavRank) return aFavRank - bFavRank;
+      if (a.b.meetsRequiredBev !== b.b.meetsRequiredBev) {
+        return a.b.meetsRequiredBev ? -1 : 1;
+      }
 
       if (a.b.beverage.price !== b.b.beverage.price) {
         return priceDirection * (a.b.beverage.price - b.b.beverage.price);
@@ -203,7 +200,7 @@ export function RarePage() {
     });
 
     return withMeta.map((x) => x.b);
-  }, [rawBevResults, favoriteBeverageIds, rareBeveragePriceSort]);
+  }, [rawBevResults, rareBeveragePriceSort]);
 
   const hasResults = requiredFoodTag && requiredBevTag && (recipeResults.length > 0 || beverageResults.length > 0);
 
@@ -357,6 +354,7 @@ export function RarePage() {
                     r={r}
                     idx={idx}
                     customer={selectedCustomer!}
+                    showRecipeProfit={showRecipeProfit}
                     isFavorite={favoriteRecipeKeySet.has(r.recipe.id)}
                     onToggleFavorite={() => {
                       if (!selectedCustomer) return;
@@ -451,10 +449,11 @@ function buildTagDetails(
   return details;
 }
 
-function RareRecipeCard({ r, idx, customer, isFavorite, onToggleFavorite }: {
+function RareRecipeCard({ r, idx, customer, showRecipeProfit, isFavorite, onToggleFavorite }: {
   r: IRareRecipeResult;
   idx: number;
   customer: ICustomerRare;
+  showRecipeProfit: boolean;
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }) {
@@ -478,6 +477,9 @@ function RareRecipeCard({ r, idx, customer, isFavorite, onToggleFavorite }: {
             <span className="text-[10px] font-mono text-muted-foreground">#{idx + 1}</span>
             <span className="text-sm font-semibold truncate">{r.recipe.name}</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${RATING_COLORS[r.rating]}`}>{RATING_LABELS[r.rating]}</span>
+            <span className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-900">
+              {r.recipe.cooker || '未知厨具'}
+            </span>
             <button
               type="button"
               onClick={onToggleFavorite}
@@ -487,10 +489,9 @@ function RareRecipeCard({ r, idx, customer, isFavorite, onToggleFavorite }: {
               <Star className={`size-3.5 ${isFavorite ? 'fill-current' : ''}`} />
             </button>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
             <span className="text-primary font-medium">¥{r.recipe.price}</span>
-            <span className="px-1 py-0 rounded bg-secondary">{r.recipe.cooker}</span>
-            <span>利润 ¥{profit}</span>
+            {showRecipeProfit && <span>利润 ¥{profit}</span>}
             <span>得分 {r.foodScore}</span>
             {r.meetsRequiredFood && <span className="text-blue-600 font-medium">满足</span>}
           </div>

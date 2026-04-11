@@ -62,6 +62,9 @@ export function SettingsPage() {
   const [copied, setCopied] = useState(false);
   const [configStatus, setConfigStatus] = useState<string | null>(null);
   const [configImportText, setConfigImportText] = useState('');
+  const [showProfitNoticeModal, setShowProfitNoticeModal] = useState(false);
+
+  const profitNotice = "当前计算基于“菜谱售价减去全部食材（含加料）的理论成本”。由于游戏内实际食材成本更低，且实际收入通常还包含小费等额外收益，因此该面板利润会远低于您的实际利润，数据仅供参考。";
 
   const os = getOS();
   const savePath = SAVE_PATHS[os];
@@ -234,6 +237,30 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* 显示选项 */}
+      <Card>
+        <CardHeader><CardTitle>显示选项</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/25 p-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">菜谱利润计算</p>
+              <p className="text-xs text-muted-foreground">
+                控制普客和稀客结果中的“利润”字段显示。
+              </p>
+            </div>
+            <Switch
+              checked={store.showRecipeProfit}
+              onCheckedChange={(checked) => {
+                store.setShowRecipeProfit(checked);
+                if (checked) {
+                  setShowProfitNoticeModal(true);
+                }
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* 菜谱/酒水过滤 */}
       <Card>
         <CardHeader>
@@ -313,6 +340,33 @@ export function SettingsPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {showProfitNoticeModal && (
+        <div className="fixed inset-0 z-[110]">
+          <button
+            type="button"
+            aria-label="关闭利润说明弹窗"
+            className="absolute inset-0 bg-foreground/35 backdrop-blur-sm"
+            onClick={() => setShowProfitNoticeModal(false)}
+          />
+          <div className="relative z-10 flex min-h-full items-center justify-center p-4">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="profit-notice-title"
+              className="w-full max-w-lg rounded-2xl border border-border bg-card p-5 shadow-[0_24px_80px_rgba(61,46,31,0.18)] sm:p-6"
+            >
+              <h3 id="profit-notice-title" className="text-lg font-semibold text-foreground">
+                利润计算说明
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-muted-foreground">{profitNotice}</p>
+              <div className="mt-5 flex justify-end">
+                <Button onClick={() => setShowProfitNoticeModal(false)}>我知道了</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

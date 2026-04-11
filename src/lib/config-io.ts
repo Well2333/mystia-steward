@@ -4,7 +4,7 @@
  */
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 
-const CONFIG_VERSION = 3;
+const CONFIG_VERSION = 4;
 const MAGIC_PREFIX = 'IZK'; // 用于识别配置字符串
 
 export interface ExportableConfig {
@@ -30,6 +30,7 @@ export interface ExportableConfig {
   di: number[];       // rareDisabledIngredientIds
   fr: Record<string, number[]> | number[] | Record<string, string[]>; // rareFavoriteRecipesByCustomer (legacy supports array/map)
   fb: Record<string, number[]>; // rareFavoriteBeverages
+  sp?: boolean;      // showRecipeProfit
 }
 
 /** Shorten filter state: 'all'→'a', 'rare'→'r', 'disabled'→'d' */
@@ -70,6 +71,7 @@ export function exportConfig(state: {
   rareDisabledIngredientIds: number[];
   rareFavoriteRecipesByCustomer: Record<string, number[]>;
   rareFavoriteBeverages: Record<string, number[]>;
+  showRecipeProfit: boolean;
 }): string {
   const ct: Record<string, { f: string | null; b: string | null }> = {};
   for (const [k, v] of Object.entries(state.rareCustomerTags)) {
@@ -96,6 +98,7 @@ export function exportConfig(state: {
     di: state.rareDisabledIngredientIds,
     fr: state.rareFavoriteRecipesByCustomer,
     fb: state.rareFavoriteBeverages,
+    sp: state.showRecipeProfit,
   };
 
   const json = JSON.stringify(config);
@@ -123,6 +126,7 @@ export function importConfig(str: string): {
   rareDisabledIngredientIds: number[];
   rareFavoriteRecipesByCustomer: Record<string, number[]>;
   rareFavoriteBeverages: Record<string, number[]>;
+  showRecipeProfit: boolean;
 } {
   const trimmed = str.trim();
   if (!trimmed.startsWith(MAGIC_PREFIX)) {
@@ -195,6 +199,7 @@ export function importConfig(str: string): {
     rareDisabledIngredientIds: config.di ?? [],
     rareFavoriteRecipesByCustomer,
     rareFavoriteBeverages: config.fb ?? {},
+    showRecipeProfit: config.sp ?? false,
   };
 }
 

@@ -22,6 +22,7 @@ type ViewTab = 'recipes' | 'beverages';
 export function NormalPage() {
   const store = useGameStore();
   const place = store.normalSelectedPlace;
+  const showRecipeProfit = store.showRecipeProfit;
   const [sortMode, setSortMode] = useState<SortMode>('coverage');
   const [bevSortMode, setBevSortMode] = useState<BevSortMode>('coverage');
   const [viewTab, setViewTab] = useState<ViewTab>('recipes');
@@ -112,7 +113,7 @@ export function NormalPage() {
 
             <div className="space-y-2">
                 {viewTab === 'recipes' && recipeResults.map((r, idx) => (
-                  <RecipeCard key={r.recipe.id} r={r} idx={idx} />
+                  <RecipeCard key={r.recipe.id} r={r} idx={idx} showRecipeProfit={showRecipeProfit} />
                 ))}
                 {viewTab === 'beverages' && beverageResults.map((b, idx) => (
                   <BeverageCard key={b.beverage.id} b={b} idx={idx} />
@@ -150,7 +151,7 @@ export function NormalPage() {
   );
 }
 
-function RecipeCard({ r, idx }: { r: INormalRecipeResult; idx: number }) {
+function RecipeCard({ r, idx, showRecipeProfit }: { r: INormalRecipeResult; idx: number; showRecipeProfit: boolean }) {
   return (
     <Card className="hover:shadow-md transition-shadow bg-card">
       <CardContent className="p-3">
@@ -161,7 +162,10 @@ function RecipeCard({ r, idx }: { r: INormalRecipeResult; idx: number }) {
               <span className="text-xs font-mono text-muted-foreground">#{idx + 1}</span>
               <span className="font-semibold text-foreground">{r.recipe.name}</span>
               <span className="text-sm font-medium text-primary">¥{r.recipe.price}</span>
-              <span className="text-xs text-muted-foreground">利润 ¥{r.profit}</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                {r.recipe.cooker || '未知厨具'}
+              </span>
+              {showRecipeProfit && <span className="text-xs text-muted-foreground">利润 ¥{r.profit}</span>}
             </div>
             <div className="flex flex-wrap gap-1 mt-1">
               {r.recipe.positiveTags.map((tag) => <TagBadge key={tag} tag={tag} variant={r.matchedTags.includes(tag) ? 'matched' : 'default'} />)}

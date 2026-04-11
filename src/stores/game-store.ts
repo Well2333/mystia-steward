@@ -24,6 +24,7 @@ interface GameState {
   popularHateFoodTag: string | null;
   hideUnowned: boolean;
   guideAutoOpenDisabled: boolean;
+  showRecipeProfit: boolean;
 
   // === 菜谱过滤 (3-state: all/rare/disabled) ===
   recipeFilter: Record<number, FilterState>;
@@ -74,11 +75,13 @@ interface GameState {
     rareBeveragePriceSort?: PriceSortOrder;
     rareFavoriteRecipesByCustomer?: Record<string, number[]>;
     rareFavoriteBeverages?: Record<string, number[]>;
+    showRecipeProfit?: boolean;
   }) => void;
   setPopularFoodTag: (tag: string | null) => void;
   setPopularHateFoodTag: (tag: string | null) => void;
   setHideUnowned: (v: boolean) => void;
   setGuideAutoOpenDisabled: (v: boolean) => void;
+  setShowRecipeProfit: (v: boolean) => void;
 
   cycleRecipeFilter: (id: number) => void;
   cycleBeverageFilter: (id: number) => void;
@@ -129,6 +132,7 @@ export const useGameStore = create<GameState>()(
       popularHateFoodTag: null,
       hideUnowned: true,
       guideAutoOpenDisabled: false,
+      showRecipeProfit: false,
       recipeFilter: {},
       beverageFilter: {},
       ingredientFilter: {},
@@ -241,6 +245,7 @@ export const useGameStore = create<GameState>()(
         rareBeveragePriceSort: data.rareBeveragePriceSort === 'asc' ? 'asc' : 'desc',
         rareFavoriteRecipesByCustomer: data.rareFavoriteRecipesByCustomer ?? {},
         rareFavoriteBeverages: data.rareFavoriteBeverages ?? {},
+        showRecipeProfit: data.showRecipeProfit ?? false,
         rareHiddenCustomerIds: data.rareHiddenCustomerIds,
         rareCustomerTags: data.rareCustomerTags,
         rareDisabledIngredientIds: data.rareDisabledIngredientIds,
@@ -250,6 +255,7 @@ export const useGameStore = create<GameState>()(
       setPopularHateFoodTag: (tag) => set({ popularHateFoodTag: tag }),
       setHideUnowned: (v) => set({ hideUnowned: v }),
       setGuideAutoOpenDisabled: (v) => set({ guideAutoOpenDisabled: v }),
+      setShowRecipeProfit: (v) => set({ showRecipeProfit: v }),
 
       cycleRecipeFilter: (id) =>
         set((s) => ({
