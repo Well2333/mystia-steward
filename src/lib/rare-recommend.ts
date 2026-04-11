@@ -33,6 +33,10 @@ const ingredientsById = new Map(
   (allIngredients as IIngredient[]).map((i) => [i.id, i]),
 );
 
+// 特殊规则：古明地恋点单时，无意识妖怪慕斯强制判定为极差。
+const KOISHI_CUSTOMER_ID = 2006;
+const KOISHI_FORCED_EXBAD_RECIPE_ID = 70;
+
 /** 获取指定地区的稀客 */
 export function getRareCustomersByPlace(place: TPlace): ICustomerRare[] {
   return (allRareCustomers as unknown as ICustomerRare[]).filter((c) =>
@@ -193,6 +197,8 @@ export function rankRecipesForRare(
 
   for (const recipe of allRecipes as IRecipe[]) {
     if (!availableRecipeIds.has(recipe.id)) continue;
+    const isKoishiForcedExBad =
+      customer.id === KOISHI_CUSTOMER_ID && recipe.id === KOISHI_FORCED_EXBAD_RECIPE_ID;
 
     // 基础食材可用性检查：必须在可用食材列表中，且未被禁用
     const hasUnavailableBaseIngredient = recipe.ingredients.some((name) => {
@@ -353,7 +359,15 @@ export function rankRecipesForRare(
       ? bestReasonData.reasonTagsByIngredient
       : {};
 
-    const rating = getRating(effectiveFoodScore, ASSUMED_BEV_SCORE, finalEval.meetsRequiredFood, ASSUMED_BEV_MEETS);
+    let finalFoodScore = effectiveFoodScore;
+    let finalMeetsRequiredFood = finalEval.meetsRequiredFood;
+    let rating = getRating(finalFoodScore, ASSUMED_BEV_SCORE, finalMeetsRequiredFood, ASSUMED_BEV_MEETS);
+
+    if (isKoishiForcedExBad) {
+      finalFoodScore = 0;
+      finalMeetsRequiredFood = false;
+      rating = 'ExBad';
+    }
 
     const baseCost = recipe.ingredients.reduce((sum, name) => {
       const ing = ingredientsByName.get(name);
@@ -367,8 +381,8 @@ export function rankRecipesForRare(
       extraIngredientReasonTags,
       allTags: finalEval.activeTags,
       cancelledTags: finalEval.cancelledTags,
-      foodScore: effectiveFoodScore,
-      meetsRequiredFood: finalEval.meetsRequiredFood,
+      foodScore: finalFoodScore,
+      meetsRequiredFood: finalMeetsRequiredFood,
       rating,
       baseCost,
       extraCost,
