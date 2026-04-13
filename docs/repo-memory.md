@@ -35,4 +35,4 @@
 - 2026-04-13（实验复盘）：Playwright 流程需显式处理“使用指南/利润说明”弹窗拦截；设置页开关覆盖应按“当前可见开关”统计而非固定 3 次；移动端需包含最小交互抽查，不应只做静态截图。
 - 2026-04-13：Playwright 高级验收新增低 token 执行入口 `scripts/run-playwright-advanced-acceptance.sh`，产物统一落在 `.playwright-cli/tmp/YYYY-MM-DD_HH:MM/`，避免污染 `.playwright-cli` 根目录。
 - 2026-04-13：Playwright 执行函数模板固定在 `.playwright-cli/playwright-advanced-acceptance.fn.template.js`；每次运行按时间目录生成执行副本，且会自动回收根目录自动生成的 `page-*.yml` 与 `console-*.log`。
-- 2026-04-13：稀客料理筛选从布尔开关“隐藏非极佳”调整为分数阈值“隐藏 X 分以下”，默认 3，范围 0-3；配置导出升级至 v5，并兼容导入 v4 的 legacy 字段 `hn`。
+- 2026-04-13：稀客料理筛选升级为双模式：默认“隐藏非极佳”，可切换到“隐藏低于 X 分以下料理”（0-3）；切换时弹差异说明；配置导出升级至 v6（`hm` + `hs`），兼容 v5/v4 导入。

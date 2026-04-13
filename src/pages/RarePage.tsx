@@ -51,6 +51,7 @@ export function RarePage() {
   const place = useGameStore((state) => state.rareSelectedPlace);
   const rareHiddenCustomerIds = useGameStore((state) => state.rareHiddenCustomerIds);
   const rareCustomerTags = useGameStore((state) => state.rareCustomerTags);
+  const rareRecipeFilterMode = useGameStore((state) => state.rareRecipeFilterMode);
   const rareHideBelowScore = useGameStore((state) => state.rareHideBelowScore);
   const rareMaxExtraIngredients = useGameStore((state) => state.rareMaxExtraIngredients);
   const rareRecipePriceSort = useGameStore((state) => state.rareRecipePriceSort);
@@ -65,6 +66,7 @@ export function RarePage() {
   const setRareSelectedPlace = useGameStore((state) => state.setRareSelectedPlace);
   const setRareCustomerTag = useGameStore((state) => state.setRareCustomerTag);
   const toggleRareHiddenCustomer = useGameStore((state) => state.toggleRareHiddenCustomer);
+  const setRareRecipeFilterMode = useGameStore((state) => state.setRareRecipeFilterMode);
   const setRareHideBelowScore = useGameStore((state) => state.setRareHideBelowScore);
   const setRareMaxExtraIngredients = useGameStore((state) => state.setRareMaxExtraIngredients);
   const toggleRareRecipePriceSort = useGameStore((state) => state.toggleRareRecipePriceSort);
@@ -95,6 +97,32 @@ export function RarePage() {
   const handleSelectCustomer = (c: ICustomerRare) => { setSelectedCustomerId(c.id); };
   const setFoodTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, tag, requiredBevTag); };
   const setBevTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, requiredFoodTag, tag); };
+  const recipeFilterOption = useMemo(() => {
+    if (rareRecipeFilterMode === 'exgood') return '非极佳';
+    if (rareHideBelowScore >= 3) return '低于3分';
+    if (rareHideBelowScore === 2) return '低于2分';
+    if (rareHideBelowScore === 1) return '低于1分';
+    return '低于0分';
+  }, [rareRecipeFilterMode, rareHideBelowScore]);
+
+  const handleRecipeFilterOptionChange = (value: string | null) => {
+    if (!value) return;
+    if (value === '非极佳') {
+      setRareRecipeFilterMode('exgood');
+      return;
+    }
+
+    const nextScore = value === '低于3分'
+      ? 3
+      : value === '低于2分'
+        ? 2
+        : value === '低于1分'
+          ? 1
+          : 0;
+
+    setRareRecipeFilterMode('score');
+    setRareHideBelowScore(nextScore);
+  };
 
   const rareRecipeIds = getRareRecipeIds();
   const rareBevIds = getRareBeverageIds();
@@ -166,8 +194,14 @@ export function RarePage() {
 
     const normalItems = filtered.filter(({ r }) => !favoriteRank.has(r.recipe.id));
     normalItems.sort((a, b) => {
-      const aMatches = a.r.foodScore >= rareHideBelowScore && a.r.extraIngredients.length <= rareMaxExtraIngredients;
-      const bMatches = b.r.foodScore >= rareHideBelowScore && b.r.extraIngredients.length <= rareMaxExtraIngredients;
+      const aPassFilter = rareRecipeFilterMode === 'exgood'
+        ? a.r.rating === 'ExGood'
+        : a.r.foodScore >= rareHideBelowScore;
+      const bPassFilter = rareRecipeFilterMode === 'exgood'
+        ? b.r.rating === 'ExGood'
+        : b.r.foodScore >= rareHideBelowScore;
+      const aMatches = aPassFilter && a.r.extraIngredients.length <= rareMaxExtraIngredients;
+      const bMatches = bPassFilter && b.r.extraIngredients.length <= rareMaxExtraIngredients;
       if (aMatches !== bMatches) return aMatches ? -1 : 1;
       if (a.r.recipe.price !== b.r.recipe.price) {
         return priceDirection * (a.r.recipe.price - b.r.recipe.price);
@@ -175,9 +209,18 @@ export function RarePage() {
       return a.idx - b.idx;
     });
 
-    return [...favoriteItems, ...normalItems.filter((x) => x.r.foodScore >= rareHideBelowScore && x.r.extraIngredients.length <= rareMaxExtraIngredients)].map((x) => x.r);
+    return [
+      ...favoriteItems,
+      ...normalItems.filter((x) => {
+        const passFilter = rareRecipeFilterMode === 'exgood'
+          ? x.r.rating === 'ExGood'
+          : x.r.foodScore >= rareHideBelowScore;
+        return passFilter && x.r.extraIngredients.length <= rareMaxExtraIngredients;
+      }),
+    ].map((x) => x.r);
   }, [
     rawRecipeResults,
+    rareRecipeFilterMode,
     rareHideBelowScore,
     rareMaxExtraIngredients,
     favoriteRecipeKeys,
@@ -313,22 +356,29 @@ export function RarePage() {
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs py-1">
               <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground whitespace-nowrap">隐藏低于</Label>
-                <Select
-                  value={String(rareHideBelowScore)}
-                  onValueChange={(value) => setRareHideBelowScore(Number(value))}
-                >
-                  <SelectTrigger className="h-7 w-[76px] text-xs">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">隐藏</Label>
+                <Select value={recipeFilterOption} onValueChange={handleRecipeFilterOptionChange}>
+                  <SelectTrigger className="h-7 w-[132px] text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">0 分</SelectItem>
-                    <SelectItem value="1">1 分</SelectItem>
-                    <SelectItem value="2">2 分</SelectItem>
-                    <SelectItem value="3">3 分</SelectItem>
+                    <SelectItem value="非极佳">非极佳</SelectItem>
+                    <SelectItem value="低于3分">低于3分</SelectItem>
+                    <SelectItem value="低于2分">低于2分</SelectItem>
+                    <SelectItem value="低于1分">低于1分</SelectItem>
+                    <SelectItem value="低于0分">低于0分</SelectItem>
                   </SelectContent>
                 </Select>
-                <Label className="text-xs text-muted-foreground whitespace-nowrap">分以下料理</Label>
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">的料理</Label>
+              </div>
+              <Separator
+                orientation="vertical"
+                className="mx-0.5 data-vertical:h-7 data-vertical:self-center"
+              />
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">
+                  {rareRecipeFilterMode === 'exgood' ? '当前仅显示极佳' : `当前阈值 ${rareHideBelowScore} 分`}
+                </Label>
               </div>
               <Separator
                 orientation="vertical"

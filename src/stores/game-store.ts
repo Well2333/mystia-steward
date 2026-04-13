@@ -17,6 +17,7 @@ import allIngredients from '@/data/ingredients.json';
  */
 export type FilterState = 'all' | 'rare' | 'disabled';
 export type PriceSortOrder = 'asc' | 'desc';
+export type RareRecipeFilterMode = 'exgood' | 'score';
 
 interface GameState {
   // === 通用设置 ===
@@ -35,6 +36,7 @@ interface GameState {
   normalSelectedPlace: TPlace | null;
   rareSelectedPlace: TPlace | null;
   rareHiddenCustomerIds: number[];
+  rareRecipeFilterMode: RareRecipeFilterMode;
   rareHideBelowScore: number;
   rareMaxExtraIngredients: number;
   rareRecipePriceSort: PriceSortOrder;
@@ -66,6 +68,7 @@ interface GameState {
     ownedIngredientQty: Record<number, number>;
     popularFoodTag: string | null;
     popularHateFoodTag: string | null;
+    rareRecipeFilterMode?: RareRecipeFilterMode;
     rareHideBelowScore?: number;
     rareHideNonPerfect?: boolean;
     rareHiddenCustomerIds: number[];
@@ -103,6 +106,7 @@ interface GameState {
   setRareSelectedPlace: (place: TPlace | null) => void;
   toggleRareHiddenCustomer: (id: number) => void;
   setRareHiddenCustomerIds: (ids: number[]) => void;
+  setRareRecipeFilterMode: (mode: RareRecipeFilterMode) => void;
   setRareHideBelowScore: (v: number) => void;
   setRareMaxExtraIngredients: (v: number) => void;
   toggleRareRecipePriceSort: () => void;
@@ -140,6 +144,7 @@ export const useGameStore = create<GameState>()(
       normalSelectedPlace: null,
       rareSelectedPlace: null,
       rareHiddenCustomerIds: [],
+      rareRecipeFilterMode: 'exgood',
       rareHideBelowScore: 3,
       rareMaxExtraIngredients: 4,
       rareRecipePriceSort: 'desc',
@@ -240,6 +245,7 @@ export const useGameStore = create<GameState>()(
         ownedIngredientQty: data.ownedIngredientQty,
         popularFoodTag: data.popularFoodTag,
         popularHateFoodTag: data.popularHateFoodTag,
+        rareRecipeFilterMode: data.rareRecipeFilterMode === 'score' ? 'score' : 'exgood',
         rareHideBelowScore: Math.max(
           0,
           Math.min(
@@ -413,6 +419,7 @@ export const useGameStore = create<GameState>()(
             : [...s.rareHiddenCustomerIds, id],
         })),
       setRareHiddenCustomerIds: (ids) => set({ rareHiddenCustomerIds: ids }),
+          setRareRecipeFilterMode: (mode) => set({ rareRecipeFilterMode: mode }),
       setRareHideBelowScore: (v) => set({ rareHideBelowScore: Math.max(0, Math.min(3, v)) }),
       setRareMaxExtraIngredients: (v) => set({ rareMaxExtraIngredients: Math.max(0, Math.min(4, v)) }),
       toggleRareRecipePriceSort: () =>

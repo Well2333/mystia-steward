@@ -4,7 +4,7 @@
  */
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 
-const CONFIG_VERSION = 5;
+const CONFIG_VERSION = 6;
 const MAGIC_PREFIX = 'IZK'; // 用于识别配置字符串
 
 export interface ExportableConfig {
@@ -21,6 +21,7 @@ export interface ExportableConfig {
   // Settings
   pf: string | null;  // popularFoodTag
   ph: string | null;  // popularHateFoodTag
+  hm?: 'exgood' | 'score'; // rareRecipeFilterMode (v6)
   hs?: number;        // rareHideBelowScore (v5)
   hn?: boolean;       // rareHideNonPerfect (legacy <= v4)
   mx: number;         // rareMaxExtraIngredients
@@ -63,6 +64,7 @@ export function exportConfig(state: {
   ownedIngredientQty: Record<number, number>;
   popularFoodTag: string | null;
   popularHateFoodTag: string | null;
+  rareRecipeFilterMode: 'exgood' | 'score';
   rareHideBelowScore: number;
   rareMaxExtraIngredients: number;
   rareRecipePriceSort: 'asc' | 'desc';
@@ -90,6 +92,7 @@ export function exportConfig(state: {
     oq: state.ownedIngredientQty as Record<string, number>,
     pf: state.popularFoodTag,
     ph: state.popularHateFoodTag,
+    hm: state.rareRecipeFilterMode,
     hs: Math.max(0, Math.min(3, state.rareHideBelowScore)),
     mx: state.rareMaxExtraIngredients,
     rs: state.rareRecipePriceSort,
@@ -118,6 +121,7 @@ export function importConfig(str: string): {
   ownedIngredientQty: Record<number, number>;
   popularFoodTag: string | null;
   popularHateFoodTag: string | null;
+  rareRecipeFilterMode: 'exgood' | 'score';
   rareHideBelowScore: number;
   rareMaxExtraIngredients: number;
   rareRecipePriceSort: 'asc' | 'desc';
@@ -185,6 +189,11 @@ export function importConfig(str: string): {
     ? config.hs
     : (config.hn === false ? 0 : 3);
 
+  const importedFilterMode = config.hm
+    ?? (typeof config.hs === 'number'
+      ? 'score'
+      : (config.hn === false ? 'score' : 'exgood'));
+
   return {
     recipeFilter: expandFilter(config.rf ?? {}),
     beverageFilter: expandFilter(config.bf ?? {}),
@@ -195,6 +204,7 @@ export function importConfig(str: string): {
     ownedIngredientQty: config.oq ?? {},
     popularFoodTag: config.pf ?? null,
     popularHateFoodTag: config.ph ?? null,
+    rareRecipeFilterMode: importedFilterMode === 'score' ? 'score' : 'exgood',
     rareHideBelowScore: Math.max(0, Math.min(3, importedHideScore)),
     rareMaxExtraIngredients: Math.max(0, Math.min(4, config.mx ?? 4)),
     rareRecipePriceSort: config.rs === 'asc' ? 'asc' : 'desc',

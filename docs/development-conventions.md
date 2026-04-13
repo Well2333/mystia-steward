@@ -38,8 +38,9 @@
 ## 4. 关键风险点
 
 - 三态过滤固定为 all | rare | disabled，缺失条目按 disabled 处理。
-- 稀客料理过滤采用“隐藏 X 分以下”阈值（0-3，默认 3），禁止回退为仅支持布尔开关的“隐藏非极佳”。
-- 配置导出当前版本为 v5：稀客过滤字段使用 `hs`（rareHideBelowScore）；导入需兼容 legacy v4 字段 `hn`（rareHideNonPerfect）。
+- 稀客料理过滤采用双模式：默认“隐藏非极佳”，可切换为“隐藏低于 X 分以下料理”（0-3）。
+- 切换稀客筛选模式时，UI 必须弹出两种模式差异说明，避免误解筛选结果。
+- 配置导出当前版本为 v6：`hm`（rareRecipeFilterMode）+ `hs`（rareHideBelowScore）；导入需兼容 legacy v5/v4 字段（`hs` / `hn`）。
 - 不在组件内硬编码平衡数值，优先更新 src/data 并通过类型化逻辑消费。
 - 存档与配置导入非法输入会抛错，UI 必须展示明确错误，禁止静默失败。
 
