@@ -85,7 +85,7 @@ export function getDynamicTags(
   return dynamic;
 }
 
-/** 检查食材是否触发菜谱禁忌（会导致黑暗物质） */
+/** 检查食材是否触发料理禁忌（会导致黑暗物质） */
 export function hasForbiddenTag(
   ingredientTags: string[],
   recipeNegativeTags: string[],
@@ -93,7 +93,7 @@ export function hasForbiddenTag(
   return ingredientTags.some((t) => recipeNegativeTags.includes(t));
 }
 
-/** 合并菜谱基础标签 + 食材标签 + 动态标签，返回完整标签集 */
+/** 合并料理基础标签 + 食材标签 + 动态标签，返回完整标签集 */
 export function mergeAllTags(
   recipePositiveTags: string[],
   extraIngredientTags: string[][],
@@ -110,7 +110,7 @@ export function mergeAllTags(
   return [...allTags];
 }
 
-/** 计算菜谱对稀客的得分 */
+/** 计算料理对稀客的得分 */
 export function scoreFoodForRare(
   activeTags: string[],
   customerPreferredTags: string[],

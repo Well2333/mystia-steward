@@ -29,9 +29,9 @@ export interface IRecipe {
   name: string;
   description: string;
   ingredients: string[];
-  // 菜谱自带标签（标签本体中性，不代表“正面”）
+  // 料理自带标签（标签本体中性，不代表“正面”）
   positiveTags: string[];
-  // 菜谱禁忌标签（命中会触发黑暗物质相关机制）
+  // 料理禁忌标签（命中会触发黑暗物质相关机制）
   negativeTags: string[];
   cooker: string;
   baseCookTime: number;

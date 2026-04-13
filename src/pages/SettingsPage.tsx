@@ -64,7 +64,7 @@ export function SettingsPage() {
   const [configImportText, setConfigImportText] = useState('');
   const [showProfitNoticeModal, setShowProfitNoticeModal] = useState(false);
 
-  const profitNotice = "当前计算基于“菜谱售价减去全部食材（含加料）的理论成本”。由于游戏内实际食材成本更低，且实际收入通常还包含小费等额外收益，因此该面板利润会远低于您的实际利润，数据仅供参考。";
+  const profitNotice = "当前计算基于“料理售价减去全部食材（含加料）的理论成本”。由于游戏内实际食材成本更低，且实际收入通常还包含小费等额外收益，因此该面板利润会远低于您的实际利润，数据仅供参考。";
 
   const os = getOS();
   const savePath = SAVE_PATHS[os];
@@ -77,7 +77,7 @@ export function SettingsPage() {
         const s = useGameStore.getState();
         const recipeCount = Object.values(s.recipeFilter).filter((v) => v !== 'disabled').length;
         const bevCount = Object.values(s.beverageFilter).filter((v) => v !== 'disabled').length;
-        setImportStatus(`导入成功! 菜谱: ${recipeCount}, 酒水: ${bevCount}`);
+        setImportStatus(`导入成功! 料理: ${recipeCount}, 酒水: ${bevCount}`);
       } catch {
         setImportStatus('导入失败: 文件格式无效');
       }
@@ -243,7 +243,7 @@ export function SettingsPage() {
         <CardContent className="space-y-3">
           <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/25 p-3">
             <div className="space-y-1">
-              <p className="text-sm font-medium">菜谱利润计算</p>
+              <p className="text-sm font-medium">料理利润计算</p>
               <p className="text-xs text-muted-foreground">
                 控制普客和稀客结果中的“利润”字段显示。
               </p>
@@ -261,11 +261,11 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* 菜谱/酒水过滤 */}
+      {/* 料理/酒水过滤 */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle>菜谱与酒水过滤</CardTitle>
+            <CardTitle>料理与酒水过滤</CardTitle>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Switch checked={editOwnership} onCheckedChange={setEditOwnership} />
@@ -286,7 +286,7 @@ export function SettingsPage() {
         <CardContent>
           <Tabs defaultValue="recipes">
             <TabsList>
-              <TabsTrigger value="recipes">菜谱</TabsTrigger>
+              <TabsTrigger value="recipes">料理</TabsTrigger>
               <TabsTrigger value="beverages">酒水</TabsTrigger>
               <TabsTrigger value="ingredients">食材</TabsTrigger>
             </TabsList>

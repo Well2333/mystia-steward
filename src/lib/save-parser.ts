@@ -33,7 +33,7 @@ interface SaveFile {
 export function parseSaveFile(jsonText: string): ParsedSaveData {
   const save = JSON.parse(jsonText) as SaveFile;
 
-  // 合并基础版菜谱 (save stores recipeId, not id)
+  // 合并基础版料理 (save stores recipeId, not id)
   const recipeGameIds = [...save.storagePartial.recipes];
 
   // 合并食材

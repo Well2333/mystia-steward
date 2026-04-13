@@ -81,7 +81,7 @@ export function NormalPage() {
       {!place && <div className="text-center py-16 text-muted-foreground text-lg">请先选择地区</div>}
 
       {place && normalRecipeIds.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">尚未设置可用菜谱，请先前往设置页导入存档或手动勾选</div>
+        <div className="text-center py-16 text-muted-foreground">尚未设置可用料理，请先前往设置页导入存档或手动勾选</div>
       )}
 
       {place && (rawRecipeResults.length > 0 || rawBevResults.length > 0) && (
@@ -91,7 +91,7 @@ export function NormalPage() {
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex gap-1">
                 <Button size="sm" variant={viewTab === 'recipes' ? 'default' : 'outline'} onClick={() => setViewTab('recipes')} className="rounded-full">
-                  菜谱 ({recipeResults.length})
+                  料理 ({recipeResults.length})
                 </Button>
                 <Button size="sm" variant={viewTab === 'beverages' ? 'default' : 'outline'} onClick={() => setViewTab('beverages')} className="rounded-full">
                   酒水 ({beverageResults.length})

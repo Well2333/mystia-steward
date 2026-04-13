@@ -1,5 +1,5 @@
 /**
- * 普客推荐算法：计算每道菜谱对每位普客的匹配分数
+ * 普客推荐算法：计算每道料理对每位普客的匹配分数
  */
 import type {
   IRecipe,
@@ -10,7 +10,7 @@ import type {
   INormalBeverageResult,
   ICustomerScore,
   TPlace,
-} from './types';
+} from '@/lib/types';
 
 import allRecipes from '@/data/recipes.json';
 import allIngredients from '@/data/ingredients.json';
@@ -28,7 +28,7 @@ export function getNormalCustomersByPlace(place: TPlace): ICustomerNormal[] {
   );
 }
 
-/** 计算菜谱的食材总成本 */
+/** 计算料理的食材总成本 */
 function getIngredientCost(recipe: IRecipe): number {
   return recipe.ingredients.reduce((sum, name) => {
     const ing = ingredientsByName.get(name);
@@ -36,7 +36,7 @@ function getIngredientCost(recipe: IRecipe): number {
   }, 0);
 }
 
-/** 计算菜谱的有效标签 */
+/** 计算料理的有效标签 */
 function getRecipeEffectiveTags(
   recipe: IRecipe,
   popularFoodTag: string | null,
@@ -54,7 +54,7 @@ function getRecipeEffectiveTags(
   return tags;
 }
 
-/** 普客菜谱排序（不排序，由调用方决定排序方式） */
+/** 普客料理排序（不排序，由调用方决定排序方式） */
 export function computeNormalRecipeResults(
   place: TPlace,
   availableRecipeIds: Set<number>,

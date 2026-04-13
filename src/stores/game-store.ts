@@ -26,7 +26,7 @@ interface GameState {
   guideAutoOpenDisabled: boolean;
   showRecipeProfit: boolean;
 
-  // === 菜谱过滤 (3-state: all/rare/disabled) ===
+  // === 料理过滤 (3-state: all/rare/disabled) ===
   recipeFilter: Record<number, FilterState>;
   beverageFilter: Record<number, FilterState>;
   ingredientFilter: Record<number, FilterState>;
@@ -35,7 +35,7 @@ interface GameState {
   normalSelectedPlace: TPlace | null;
   rareSelectedPlace: TPlace | null;
   rareHiddenCustomerIds: number[];
-  rareHideNonPerfect: boolean;
+  rareHideBelowScore: number;
   rareMaxExtraIngredients: number;
   rareRecipePriceSort: PriceSortOrder;
   rareBeveragePriceSort: PriceSortOrder;
@@ -66,7 +66,8 @@ interface GameState {
     ownedIngredientQty: Record<number, number>;
     popularFoodTag: string | null;
     popularHateFoodTag: string | null;
-    rareHideNonPerfect: boolean;
+    rareHideBelowScore?: number;
+    rareHideNonPerfect?: boolean;
     rareHiddenCustomerIds: number[];
     rareCustomerTags: Record<number, { food: string | null; bev: string | null }>;
     rareDisabledIngredientIds: number[];
@@ -102,7 +103,7 @@ interface GameState {
   setRareSelectedPlace: (place: TPlace | null) => void;
   toggleRareHiddenCustomer: (id: number) => void;
   setRareHiddenCustomerIds: (ids: number[]) => void;
-  setRareHideNonPerfect: (v: boolean) => void;
+  setRareHideBelowScore: (v: number) => void;
   setRareMaxExtraIngredients: (v: number) => void;
   toggleRareRecipePriceSort: () => void;
   toggleRareBeveragePriceSort: () => void;
@@ -139,7 +140,7 @@ export const useGameStore = create<GameState>()(
       normalSelectedPlace: null,
       rareSelectedPlace: null,
       rareHiddenCustomerIds: [],
-      rareHideNonPerfect: true,
+      rareHideBelowScore: 3,
       rareMaxExtraIngredients: 4,
       rareRecipePriceSort: 'desc',
       rareBeveragePriceSort: 'desc',
@@ -239,7 +240,14 @@ export const useGameStore = create<GameState>()(
         ownedIngredientQty: data.ownedIngredientQty,
         popularFoodTag: data.popularFoodTag,
         popularHateFoodTag: data.popularHateFoodTag,
-        rareHideNonPerfect: data.rareHideNonPerfect,
+        rareHideBelowScore: Math.max(
+          0,
+          Math.min(
+            3,
+            data.rareHideBelowScore
+              ?? (data.rareHideNonPerfect === false ? 0 : 3),
+          ),
+        ),
         rareMaxExtraIngredients: Math.max(0, Math.min(4, data.rareMaxExtraIngredients ?? 4)),
         rareRecipePriceSort: data.rareRecipePriceSort === 'asc' ? 'asc' : 'desc',
         rareBeveragePriceSort: data.rareBeveragePriceSort === 'asc' ? 'asc' : 'desc',
@@ -405,7 +413,7 @@ export const useGameStore = create<GameState>()(
             : [...s.rareHiddenCustomerIds, id],
         })),
       setRareHiddenCustomerIds: (ids) => set({ rareHiddenCustomerIds: ids }),
-      setRareHideNonPerfect: (v) => set({ rareHideNonPerfect: v }),
+      setRareHideBelowScore: (v) => set({ rareHideBelowScore: Math.max(0, Math.min(3, v)) }),
       setRareMaxExtraIngredients: (v) => set({ rareMaxExtraIngredients: Math.max(0, Math.min(4, v)) }),
       toggleRareRecipePriceSort: () =>
         set((s) => ({

@@ -51,7 +51,7 @@ export function RarePage() {
   const place = useGameStore((state) => state.rareSelectedPlace);
   const rareHiddenCustomerIds = useGameStore((state) => state.rareHiddenCustomerIds);
   const rareCustomerTags = useGameStore((state) => state.rareCustomerTags);
-  const rareHideNonPerfect = useGameStore((state) => state.rareHideNonPerfect);
+  const rareHideBelowScore = useGameStore((state) => state.rareHideBelowScore);
   const rareMaxExtraIngredients = useGameStore((state) => state.rareMaxExtraIngredients);
   const rareRecipePriceSort = useGameStore((state) => state.rareRecipePriceSort);
   const rareBeveragePriceSort = useGameStore((state) => state.rareBeveragePriceSort);
@@ -65,7 +65,7 @@ export function RarePage() {
   const setRareSelectedPlace = useGameStore((state) => state.setRareSelectedPlace);
   const setRareCustomerTag = useGameStore((state) => state.setRareCustomerTag);
   const toggleRareHiddenCustomer = useGameStore((state) => state.toggleRareHiddenCustomer);
-  const setRareHideNonPerfect = useGameStore((state) => state.setRareHideNonPerfect);
+  const setRareHideBelowScore = useGameStore((state) => state.setRareHideBelowScore);
   const setRareMaxExtraIngredients = useGameStore((state) => state.setRareMaxExtraIngredients);
   const toggleRareRecipePriceSort = useGameStore((state) => state.toggleRareRecipePriceSort);
   const toggleRareBeveragePriceSort = useGameStore((state) => state.toggleRareBeveragePriceSort);
@@ -166,8 +166,8 @@ export function RarePage() {
 
     const normalItems = filtered.filter(({ r }) => !favoriteRank.has(r.recipe.id));
     normalItems.sort((a, b) => {
-      const aMatches = (!rareHideNonPerfect || a.r.rating === 'ExGood') && a.r.extraIngredients.length <= rareMaxExtraIngredients;
-      const bMatches = (!rareHideNonPerfect || b.r.rating === 'ExGood') && b.r.extraIngredients.length <= rareMaxExtraIngredients;
+      const aMatches = a.r.foodScore >= rareHideBelowScore && a.r.extraIngredients.length <= rareMaxExtraIngredients;
+      const bMatches = b.r.foodScore >= rareHideBelowScore && b.r.extraIngredients.length <= rareMaxExtraIngredients;
       if (aMatches !== bMatches) return aMatches ? -1 : 1;
       if (a.r.recipe.price !== b.r.recipe.price) {
         return priceDirection * (a.r.recipe.price - b.r.recipe.price);
@@ -175,10 +175,10 @@ export function RarePage() {
       return a.idx - b.idx;
     });
 
-    return [...favoriteItems, ...normalItems.filter((x) => (!rareHideNonPerfect || x.r.rating === 'ExGood') && x.r.extraIngredients.length <= rareMaxExtraIngredients)].map((x) => x.r);
+    return [...favoriteItems, ...normalItems.filter((x) => x.r.foodScore >= rareHideBelowScore && x.r.extraIngredients.length <= rareMaxExtraIngredients)].map((x) => x.r);
   }, [
     rawRecipeResults,
-    rareHideNonPerfect,
+    rareHideBelowScore,
     rareMaxExtraIngredients,
     favoriteRecipeKeys,
     rareRecipePriceSort,
@@ -301,20 +301,34 @@ export function RarePage() {
         </Card>
       )}
 
-      {/* 推荐结果：菜谱 + 酒水并列 */}
+      {/* 推荐结果：料理 + 酒水并列 */}
       {hasResults && (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* 菜谱区域 */}
+          {/* 料理区域 */}
           <div className="lg:col-span-3 space-y-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h2 className="text-base font-semibold">
-                菜谱 ({recipeResults.length} / {rawRecipeResults.length})
+                料理 ({recipeResults.length} / {rawRecipeResults.length})
               </h2>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs py-1">
               <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground whitespace-nowrap">隐藏非极佳</Label>
-                <Switch checked={rareHideNonPerfect} onCheckedChange={setRareHideNonPerfect} />
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">隐藏低于</Label>
+                <Select
+                  value={String(rareHideBelowScore)}
+                  onValueChange={(value) => setRareHideBelowScore(Number(value))}
+                >
+                  <SelectTrigger className="h-7 w-[76px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0 分</SelectItem>
+                    <SelectItem value="1">1 分</SelectItem>
+                    <SelectItem value="2">2 分</SelectItem>
+                    <SelectItem value="3">3 分</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">分以下料理</Label>
               </div>
               <Separator
                 orientation="vertical"
@@ -326,7 +340,7 @@ export function RarePage() {
                   value={String(rareMaxExtraIngredients)}
                   onValueChange={(value) => setRareMaxExtraIngredients(Number(value))}
                 >
-                  <SelectTrigger className="h-7 w-[88px] text-xs">
+                  <SelectTrigger className="h-7 w-[76px] text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -412,7 +426,7 @@ export function RarePage() {
       )}
 
       {requiredFoodTag && requiredBevTag && recipeResults.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">没有找到符合条件的菜谱</div>
+        <div className="text-center py-12 text-muted-foreground">没有找到符合条件的料理</div>
       )}
     </div>
   );

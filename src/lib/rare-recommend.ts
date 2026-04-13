@@ -1,5 +1,5 @@
 /**
- * 稀客推荐算法：组合搜索菜谱加料方案
+ * 稀客推荐算法：组合搜索料理加料方案
  */
 import type {
   IRecipe,
@@ -9,7 +9,7 @@ import type {
   IRareRecipeResult,
   IRareBeverageResult,
   TPlace,
-} from './types';
+} from '@/lib/types';
 import {
   resolveTagConflicts,
   getDynamicTags,
@@ -19,7 +19,7 @@ import {
   getRating,
   canCancelNegativeByConflict,
   countConflictCancellations,
-} from './tags';
+} from '@/lib/tags';
 
 import allRecipes from '@/data/recipes.json';
 import allIngredients from '@/data/ingredients.json';
@@ -161,7 +161,7 @@ function evaluateCombo(
   return { foodScore, meetsRequiredFood, activeTags, cancelledTags };
 }
 
-/** 稀客菜谱推荐 */
+/** 稀客料理推荐 */
 export function rankRecipesForRare(
   customer: ICustomerRare,
   requiredFoodTag: string,
@@ -221,7 +221,7 @@ export function rankRecipesForRare(
     const baseAllTags = mergeAllTags(recipe.positiveTags, [], baseDynamicTags);
     const { activeTags: baseActiveTags } = resolveTagConflicts(baseAllTags);
 
-    // 筛选此菜谱可用的候选食材
+    // 筛选此料理可用的候选食材
     const allCandidates = usableIngredients.filter(
       (ing) => !hasForbiddenTag(ing.tags, recipe.negativeTags),
     );
