@@ -36,3 +36,4 @@
 - 2026-04-13：Playwright 高级验收新增低 token 执行入口 `scripts/run-playwright-advanced-acceptance.sh`，产物统一落在 `.playwright-cli/tmp/YYYY-MM-DD_HH:MM/`，避免污染 `.playwright-cli` 根目录。
 - 2026-04-13：Playwright 执行函数模板固定在 `.playwright-cli/playwright-advanced-acceptance.fn.template.js`；每次运行按时间目录生成执行副本，且会自动回收根目录自动生成的 `page-*.yml` 与 `console-*.log`。
 - 2026-04-13：稀客料理筛选升级为双模式：默认“隐藏非极佳”，可切换到“隐藏低于 X 分以下料理”（0-3）；切换时弹差异说明；配置导出升级至 v6（`hm` + `hs`），兼容 v5/v4 导入。
+- 2026-04-13：稀客页支持“添加稀客”全局列表，可从全部稀客中追加显示，持久化行为与“过滤稀客”一致；配置导入导出已支持该列表字段。

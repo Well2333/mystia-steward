@@ -36,6 +36,7 @@ interface GameState {
   normalSelectedPlace: TPlace | null;
   rareSelectedPlace: TPlace | null;
   rareHiddenCustomerIds: number[];
+  rareExtraCustomerIds: number[];
   rareRecipeFilterMode: RareRecipeFilterMode;
   rareHideBelowScore: number;
   rareMaxExtraIngredients: number;
@@ -72,6 +73,7 @@ interface GameState {
     rareHideBelowScore?: number;
     rareHideNonPerfect?: boolean;
     rareHiddenCustomerIds: number[];
+    rareExtraCustomerIds?: number[];
     rareCustomerTags: Record<number, { food: string | null; bev: string | null }>;
     rareDisabledIngredientIds: number[];
     rareMaxExtraIngredients?: number;
@@ -106,6 +108,8 @@ interface GameState {
   setRareSelectedPlace: (place: TPlace | null) => void;
   toggleRareHiddenCustomer: (id: number) => void;
   setRareHiddenCustomerIds: (ids: number[]) => void;
+  addRareExtraCustomer: (id: number) => void;
+  removeRareExtraCustomer: (id: number) => void;
   setRareRecipeFilterMode: (mode: RareRecipeFilterMode) => void;
   setRareHideBelowScore: (v: number) => void;
   setRareMaxExtraIngredients: (v: number) => void;
@@ -130,6 +134,19 @@ function cycleState(current: FilterState): FilterState {
   return 'all';
 }
 
+function uniqueNumberIds(ids: number[]): number[] {
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const id of ids) {
+    if (!Number.isFinite(id)) continue;
+    const normalized = Math.trunc(id);
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+  }
+  return out;
+}
+
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
@@ -144,6 +161,7 @@ export const useGameStore = create<GameState>()(
       normalSelectedPlace: null,
       rareSelectedPlace: null,
       rareHiddenCustomerIds: [],
+      rareExtraCustomerIds: [],
       rareRecipeFilterMode: 'exgood',
       rareHideBelowScore: 3,
       rareMaxExtraIngredients: 4,
@@ -261,6 +279,7 @@ export const useGameStore = create<GameState>()(
         rareFavoriteBeverages: data.rareFavoriteBeverages ?? {},
         showRecipeProfit: data.showRecipeProfit ?? false,
         rareHiddenCustomerIds: data.rareHiddenCustomerIds,
+        rareExtraCustomerIds: uniqueNumberIds(data.rareExtraCustomerIds ?? []),
         rareCustomerTags: data.rareCustomerTags,
         rareDisabledIngredientIds: data.rareDisabledIngredientIds,
       }),
@@ -419,7 +438,16 @@ export const useGameStore = create<GameState>()(
             : [...s.rareHiddenCustomerIds, id],
         })),
       setRareHiddenCustomerIds: (ids) => set({ rareHiddenCustomerIds: ids }),
-          setRareRecipeFilterMode: (mode) => set({ rareRecipeFilterMode: mode }),
+      addRareExtraCustomer: (id) =>
+        set((s) => {
+          if (s.rareExtraCustomerIds.includes(id)) return s;
+          return { rareExtraCustomerIds: [...s.rareExtraCustomerIds, id] };
+        }),
+      removeRareExtraCustomer: (id) =>
+        set((s) => ({
+          rareExtraCustomerIds: s.rareExtraCustomerIds.filter((i) => i !== id),
+        })),
+      setRareRecipeFilterMode: (mode) => set({ rareRecipeFilterMode: mode }),
       setRareHideBelowScore: (v) => set({ rareHideBelowScore: Math.max(0, Math.min(3, v)) }),
       setRareMaxExtraIngredients: (v) => set({ rareMaxExtraIngredients: Math.max(0, Math.min(4, v)) }),
       toggleRareRecipePriceSort: () =>

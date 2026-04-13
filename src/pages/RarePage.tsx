@@ -18,6 +18,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import {
+  getAllRareCustomers,
   getRareCustomersByPlace,
   rankRecipesForRare,
   rankBeveragesForRare,
@@ -50,6 +51,7 @@ function buildRareContextKey(customerId: number, foodTag: string, bevTag: string
 export function RarePage() {
   const place = useGameStore((state) => state.rareSelectedPlace);
   const rareHiddenCustomerIds = useGameStore((state) => state.rareHiddenCustomerIds);
+  const rareExtraCustomerIds = useGameStore((state) => state.rareExtraCustomerIds);
   const rareCustomerTags = useGameStore((state) => state.rareCustomerTags);
   const rareRecipeFilterMode = useGameStore((state) => state.rareRecipeFilterMode);
   const rareHideBelowScore = useGameStore((state) => state.rareHideBelowScore);
@@ -66,6 +68,8 @@ export function RarePage() {
   const setRareSelectedPlace = useGameStore((state) => state.setRareSelectedPlace);
   const setRareCustomerTag = useGameStore((state) => state.setRareCustomerTag);
   const toggleRareHiddenCustomer = useGameStore((state) => state.toggleRareHiddenCustomer);
+  const addRareExtraCustomer = useGameStore((state) => state.addRareExtraCustomer);
+  const removeRareExtraCustomer = useGameStore((state) => state.removeRareExtraCustomer);
   const setRareRecipeFilterMode = useGameStore((state) => state.setRareRecipeFilterMode);
   const setRareHideBelowScore = useGameStore((state) => state.setRareHideBelowScore);
   const setRareMaxExtraIngredients = useGameStore((state) => state.setRareMaxExtraIngredients);
@@ -78,12 +82,39 @@ export function RarePage() {
   const getRareIngredientIds = useGameStore((state) => state.getRareIngredientIds);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [showFilter, setShowFilter] = useState(false);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [pendingAddCustomerIds, setPendingAddCustomerIds] = useState<number[]>([]);
 
-  const allCustomers = useMemo(() => (place ? getRareCustomersByPlace(place) : []), [place]);
+  const allRareCustomers = useMemo(() => getAllRareCustomers(), []);
+  const allCustomers = useMemo(() => {
+    if (!place) return [];
+
+    const byId = new Map<number, ICustomerRare>();
+    for (const customer of getRareCustomersByPlace(place)) {
+      byId.set(customer.id, customer);
+    }
+    for (const customerId of rareExtraCustomerIds) {
+      const customer = allRareCustomers.find((c) => c.id === customerId);
+      if (!customer) continue;
+      byId.set(customer.id, customer);
+    }
+    return [...byId.values()];
+  }, [place, rareExtraCustomerIds, allRareCustomers]);
   const visibleCustomers = useMemo(
     () => allCustomers.filter((c) => !rareHiddenCustomerIds.includes(c.id)),
     [allCustomers, rareHiddenCustomerIds],
   );
+  const addableCustomers = useMemo(() => {
+    if (!place) return [];
+    const shownIds = new Set(allCustomers.map((c) => c.id));
+    return allRareCustomers.filter((c) => !shownIds.has(c.id));
+  }, [place, allCustomers, allRareCustomers]);
+  const addedCustomers = useMemo(() => {
+    const byId = new Map(allRareCustomers.map((c) => [c.id, c]));
+    return rareExtraCustomerIds
+      .map((id) => byId.get(id))
+      .filter((customer): customer is ICustomerRare => Boolean(customer));
+  }, [allRareCustomers, rareExtraCustomerIds]);
   const selectedCustomer = useMemo(
     () => allCustomers.find((c) => c.id === selectedCustomerId) ?? null,
     [allCustomers, selectedCustomerId],
@@ -95,6 +126,20 @@ export function RarePage() {
 
   const handlePlaceChange = (p: TPlace) => { setRareSelectedPlace(p); setSelectedCustomerId(null); };
   const handleSelectCustomer = (c: ICustomerRare) => { setSelectedCustomerId(c.id); };
+  const handleTogglePendingCustomer = (id: number) => {
+    setPendingAddCustomerIds((prev) => (
+      prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id]
+    ));
+  };
+  const handleConfirmAddCustomers = () => {
+    for (const id of pendingAddCustomerIds) {
+      addRareExtraCustomer(id);
+    }
+    setPendingAddCustomerIds([]);
+    setShowAddCustomerModal(false);
+  };
   const setFoodTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, tag, requiredBevTag); };
   const setBevTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, requiredFoodTag, tag); };
   const recipeFilterOption = useMemo(() => {
@@ -253,11 +298,117 @@ export function RarePage() {
         <h1 className="text-2xl font-bold text-foreground">稀客推荐</h1>
         <RegionSelector value={place} onChange={handlePlaceChange} />
         {place && (
-          <Button size="sm" variant="outline" onClick={() => setShowFilter(!showFilter)}>
-            {showFilter ? '隐藏过滤' : '过滤稀客'}
-          </Button>
+          <>
+            <Button size="sm" variant="outline" onClick={() => setShowFilter(!showFilter)}>
+              {showFilter ? '隐藏过滤' : '过滤稀客'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setPendingAddCustomerIds([]);
+                setShowAddCustomerModal(true);
+              }}
+              disabled={addableCustomers.length === 0}
+            >
+              添加稀客
+            </Button>
+          </>
         )}
       </div>
+
+      {showAddCustomerModal && (
+        <div className="fixed inset-0 z-[120]">
+          <button
+            type="button"
+            aria-label="关闭添加稀客弹窗"
+            className="absolute inset-0 bg-foreground/35 backdrop-blur-sm"
+            onClick={() => {
+              setPendingAddCustomerIds([]);
+              setShowAddCustomerModal(false);
+            }}
+          />
+          <div className="relative z-10 flex min-h-full items-center justify-center p-4">
+            <Card className="w-full max-w-3xl border-border bg-card shadow-[0_24px_80px_rgba(61,46,31,0.18)]">
+              <CardContent className="space-y-4 p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-lg font-semibold text-foreground">添加稀客</h3>
+                  <span className="text-xs text-muted-foreground">
+                    可选 {addableCustomers.length} 位，已选 {pendingAddCustomerIds.length} 位
+                  </span>
+                </div>
+
+                {addableCustomers.length > 0 ? (
+                  <ScrollArea className="h-[360px] rounded-lg border border-border p-3">
+                    <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                      {addableCustomers.map((customer) => {
+                        const selected = pendingAddCustomerIds.includes(customer.id);
+                        return (
+                          <button
+                            key={customer.id}
+                            type="button"
+                            onClick={() => handleTogglePendingCustomer(customer.id)}
+                            className={`flex flex-col items-center gap-1 rounded-xl p-1.5 transition-all ${selected ? 'bg-primary/10 ring-2 ring-primary shadow-sm' : 'hover:bg-secondary'}`}
+                          >
+                            <Sprite
+                              type="customer_rare"
+                              index={rareCustomerIndexMap.get(customer.id) ?? 0}
+                              size={56}
+                              className="rounded-lg"
+                            />
+                            <span className={`text-xs ${selected ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
+                              {customer.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="rounded-lg border border-border bg-secondary/35 p-6 text-center text-sm text-muted-foreground">
+                    当前地区已无可添加稀客
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setPendingAddCustomerIds([]);
+                      setShowAddCustomerModal(false);
+                    }}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    onClick={handleConfirmAddCustomers}
+                    disabled={pendingAddCustomerIds.length === 0}
+                  >
+                    添加选中稀客
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {place && addedCustomers.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground">已添加稀客:</span>
+          {addedCustomers.map((customer) => (
+            <Button
+              key={customer.id}
+              size="sm"
+              variant="outline"
+              className="h-7 rounded-full px-3 text-xs"
+              onClick={() => removeRareExtraCustomer(customer.id)}
+            >
+              {customer.name} ×
+            </Button>
+          ))}
+        </div>
+      )}
 
       {!place && <div className="text-center py-16 text-muted-foreground text-lg">请先选择地区</div>}
 
@@ -370,15 +521,6 @@ export function RarePage() {
                   </SelectContent>
                 </Select>
                 <Label className="text-xs text-muted-foreground whitespace-nowrap">的料理</Label>
-              </div>
-              <Separator
-                orientation="vertical"
-                className="mx-0.5 data-vertical:h-7 data-vertical:self-center"
-              />
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground whitespace-nowrap">
-                  {rareRecipeFilterMode === 'exgood' ? '当前仅显示极佳' : `当前阈值 ${rareHideBelowScore} 分`}
-                </Label>
               </div>
               <Separator
                 orientation="vertical"

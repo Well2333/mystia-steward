@@ -28,6 +28,7 @@ export interface ExportableConfig {
   rs: 'asc' | 'desc'; // rareRecipePriceSort
   bs: 'asc' | 'desc'; // rareBeveragePriceSort
   hc: number[];       // rareHiddenCustomerIds
+  ec?: number[];      // rareExtraCustomerIds
   ct: Record<string, { f: string | null; b: string | null }>; // rareCustomerTags (compressed)
   di: number[];       // rareDisabledIngredientIds
   fr: Record<string, number[]> | number[] | Record<string, string[]>; // rareFavoriteRecipesByCustomer (legacy supports array/map)
@@ -70,6 +71,7 @@ export function exportConfig(state: {
   rareRecipePriceSort: 'asc' | 'desc';
   rareBeveragePriceSort: 'asc' | 'desc';
   rareHiddenCustomerIds: number[];
+  rareExtraCustomerIds: number[];
   rareCustomerTags: Record<number, { food: string | null; bev: string | null }>;
   rareDisabledIngredientIds: number[];
   rareFavoriteRecipesByCustomer: Record<string, number[]>;
@@ -98,6 +100,7 @@ export function exportConfig(state: {
     rs: state.rareRecipePriceSort,
     bs: state.rareBeveragePriceSort,
     hc: state.rareHiddenCustomerIds,
+    ec: state.rareExtraCustomerIds,
     ct,
     di: state.rareDisabledIngredientIds,
     fr: state.rareFavoriteRecipesByCustomer,
@@ -127,6 +130,7 @@ export function importConfig(str: string): {
   rareRecipePriceSort: 'asc' | 'desc';
   rareBeveragePriceSort: 'asc' | 'desc';
   rareHiddenCustomerIds: number[];
+  rareExtraCustomerIds: number[];
   rareCustomerTags: Record<number, { food: string | null; bev: string | null }>;
   rareDisabledIngredientIds: number[];
   rareFavoriteRecipesByCustomer: Record<string, number[]>;
@@ -210,6 +214,9 @@ export function importConfig(str: string): {
     rareRecipePriceSort: config.rs === 'asc' ? 'asc' : 'desc',
     rareBeveragePriceSort: config.bs === 'asc' ? 'asc' : 'desc',
     rareHiddenCustomerIds: config.hc ?? [],
+    rareExtraCustomerIds: Array.isArray(config.ec)
+      ? config.ec.filter((id) => Number.isFinite(id)).map((id) => Math.trunc(id))
+      : [],
     rareCustomerTags,
     rareDisabledIngredientIds: config.di ?? [],
     rareFavoriteRecipesByCustomer,
