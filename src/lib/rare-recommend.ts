@@ -171,6 +171,7 @@ export function rankRecipesForRare(
   disabledIngredientIds: Set<number>,
   popularFoodTag: string | null,
   popularHateFoodTag: string | null,
+  maxExtraIngredients = 4,
   ownedIngredientQty: Record<number, number> = {},
 ): IRareRecipeResult[] {
   const results: IRareRecipeResult[] = [];
@@ -179,8 +180,8 @@ export function rankRecipesForRare(
   // 因此料理仅追求3分即可，超过3分不再产生额外收益。
   const ASSUMED_BEV_SCORE = 1;
   const ASSUMED_BEV_MEETS = true;
-  const FOOD_SCORE_CAP = 3;
-  const minFoodScore = FOOD_SCORE_CAP;
+  const TARGET_FOOD_SCORE = 3;
+  const minFoodScore = TARGET_FOOD_SCORE;
 
   // 构建可用食材列表
   const usableIngredients: IIngredient[] = [];
@@ -209,7 +210,8 @@ export function rankRecipesForRare(
     });
     if (hasUnavailableBaseIngredient) continue;
 
-    const extraSlots = 5 - recipe.ingredients.length;
+    const recipeExtraSlots = 5 - recipe.ingredients.length;
+    const extraSlots = Math.max(0, Math.min(recipeExtraSlots, maxExtraIngredients));
 
     const baseDynamicTags = getDynamicTags(
       recipe.price,
@@ -283,13 +285,48 @@ export function rankRecipesForRare(
     // 先评估不加料的情况
     const baseEval = bestEval;
 
-    if (
-      baseEval.foodScore >= minFoodScore &&
-      baseEval.meetsRequiredFood
-    ) {
+    if (baseEval.foodScore >= minFoodScore && baseEval.meetsRequiredFood) {
       bestCombo = [];
     } else if (extraSlots > 0) {
       const n = candidates.length;
+      let bestFallbackCombo: IIngredient[] = [];
+      let bestFallbackEval = baseEval;
+      let bestFallbackReasonData: IngredientTagReasonResult = {
+        reasonTagsByIngredient: {},
+        assignedBaseReuseScore: 0,
+        assignedQtyScore: 0,
+        assignedPriceScore: 0,
+      };
+      let bestFallbackCost = 0;
+
+      const shouldReplaceFallback = (
+        prevEval: ReturnType<typeof evaluateCombo>,
+        prevCombo: IIngredient[],
+        prevReason: IngredientTagReasonResult,
+        prevCost: number,
+        nextEval: ReturnType<typeof evaluateCombo>,
+        nextCombo: IIngredient[],
+        nextReason: IngredientTagReasonResult,
+        nextCost: number,
+      ) => {
+        const prevScore = prevEval.foodScore;
+        const nextScore = nextEval.foodScore;
+        if (nextScore !== prevScore) return nextScore > prevScore;
+        if (nextEval.meetsRequiredFood !== prevEval.meetsRequiredFood) {
+          return nextEval.meetsRequiredFood;
+        }
+        if (nextCombo.length !== prevCombo.length) return nextCombo.length < prevCombo.length;
+        if (nextReason.assignedBaseReuseScore !== prevReason.assignedBaseReuseScore) {
+          return nextReason.assignedBaseReuseScore > prevReason.assignedBaseReuseScore;
+        }
+        if (nextReason.assignedQtyScore !== prevReason.assignedQtyScore) {
+          return nextReason.assignedQtyScore > prevReason.assignedQtyScore;
+        }
+        if (nextReason.assignedPriceScore !== prevReason.assignedPriceScore) {
+          return nextReason.assignedPriceScore < prevReason.assignedPriceScore;
+        }
+        return nextCost < prevCost;
+      };
 
       outer: for (let k = 1; k <= Math.min(extraSlots, n); k++) {
         let bestComboForK: IIngredient[] | null = null;
@@ -300,18 +337,36 @@ export function rankRecipesForRare(
         while (true) {
           const combo = indices.map((i) => candidates[i]);
           const ev = evaluateCombo(recipe, combo, customer, requiredFoodTag, popularFoodTag, popularHateFoodTag);
-          if (ev.foodScore >= minFoodScore && ev.meetsRequiredFood) {
-            const cost = combo.reduce((sum, ingredient) => sum + ingredient.price, 0);
-            const reasonData = buildExtraIngredientTagReasons(
-              combo,
-              baseEval.activeTags,
-              ev.activeTags,
-              customer.positiveTags,
-              requiredFoodTag,
-              baseIngNames,
-              ownedIngredientQty,
-            );
+          const cost = combo.reduce((sum, ingredient) => sum + ingredient.price, 0);
+          const reasonData = buildExtraIngredientTagReasons(
+            combo,
+            baseEval.activeTags,
+            ev.activeTags,
+            customer.positiveTags,
+            requiredFoodTag,
+            baseIngNames,
+            ownedIngredientQty,
+          );
 
+          if (
+            shouldReplaceFallback(
+              bestFallbackEval,
+              bestFallbackCombo,
+              bestFallbackReasonData,
+              bestFallbackCost,
+              ev,
+              combo,
+              reasonData,
+              cost,
+            )
+          ) {
+            bestFallbackCombo = combo;
+            bestFallbackEval = ev;
+            bestFallbackReasonData = reasonData;
+            bestFallbackCost = cost;
+          }
+
+          if (ev.foodScore >= minFoodScore && ev.meetsRequiredFood) {
             const shouldReplace =
               bestComboForK === null ||
               reasonData.assignedBaseReuseScore > (bestReasonForK?.assignedBaseReuseScore ?? -1) ||
@@ -348,18 +403,23 @@ export function rankRecipesForRare(
           break outer;
         }
       }
+
+      if (bestCombo === null && bestFallbackCombo.length > 0) {
+        bestCombo = bestFallbackCombo;
+        bestEval = bestFallbackEval;
+        bestReasonData = bestFallbackReasonData;
+      }
     }
 
     // 计算最终结果
     const selectedIngredients = bestCombo ?? [];
     const finalEval = bestCombo !== null ? bestEval : baseEval;
-    const effectiveFoodScore = Math.min(finalEval.foodScore, FOOD_SCORE_CAP);
 
     const extraIngredientReasonTags = selectedIngredients.length > 0
       ? bestReasonData.reasonTagsByIngredient
       : {};
 
-    let finalFoodScore = effectiveFoodScore;
+    let finalFoodScore = finalEval.foodScore;
     let finalMeetsRequiredFood = finalEval.meetsRequiredFood;
     let rating = getRating(finalFoodScore, ASSUMED_BEV_SCORE, finalMeetsRequiredFood, ASSUMED_BEV_MEETS);
 

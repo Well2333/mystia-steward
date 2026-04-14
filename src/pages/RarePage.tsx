@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Star } from 'lucide-react';
 import { useGameStore } from '@/stores/game-store';
 import { RegionSelector } from '@/components/RegionSelector';
@@ -42,6 +42,11 @@ const RATING_LABELS: Record<TRating, string> = {
   ExBad: '极差',
 };
 const EMPTY_BEVERAGES: ReturnType<typeof rankBeveragesForRare> = [];
+const NON_ORDERABLE_RARE_FOOD_TAGS = new Set(['流行喜爱', '流行厌恶']);
+
+function isOrderableRareFoodTag(tag: string): boolean {
+  return !NON_ORDERABLE_RARE_FOOD_TAGS.has(tag);
+}
 
 function buildRareContextKey(customerId: number, foodTag: string, bevTag: string): string {
   return `${customerId}|${foodTag}|${bevTag}`;
@@ -122,7 +127,19 @@ export function RarePage() {
 
   const savedTags = selectedCustomerId != null ? rareCustomerTags[selectedCustomerId] : null;
   const requiredFoodTag = savedTags?.food ?? null;
+  const normalizedRequiredFoodTag =
+    requiredFoodTag && isOrderableRareFoodTag(requiredFoodTag) ? requiredFoodTag : null;
   const requiredBevTag = savedTags?.bev ?? null;
+  const selectableFoodTags = useMemo(
+    () => (selectedCustomer ? selectedCustomer.positiveTags.filter(isOrderableRareFoodTag) : []),
+    [selectedCustomer],
+  );
+
+  useEffect(() => {
+    if (selectedCustomerId == null) return;
+    if (!requiredFoodTag || isOrderableRareFoodTag(requiredFoodTag)) return;
+    setRareCustomerTag(selectedCustomerId, null, requiredBevTag);
+  }, [selectedCustomerId, requiredFoodTag, requiredBevTag, setRareCustomerTag]);
 
   const handlePlaceChange = (p: TPlace) => { setRareSelectedPlace(p); setSelectedCustomerId(null); };
   const handleSelectCustomer = (c: ICustomerRare) => { setSelectedCustomerId(c.id); };
@@ -141,7 +158,7 @@ export function RarePage() {
     setShowAddCustomerModal(false);
   };
   const setFoodTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, tag, requiredBevTag); };
-  const setBevTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, requiredFoodTag, tag); };
+  const setBevTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, normalizedRequiredFoodTag, tag); };
   const recipeFilterOption = useMemo(() => {
     if (rareRecipeFilterMode === 'exgood') return '非极佳';
     if (rareHideBelowScore >= 3) return '低于3分';
@@ -179,34 +196,36 @@ export function RarePage() {
   }, [selectedCustomer, requiredBevTag, rareBevIds]);
 
   const rawRecipeResults = useMemo(() => {
-    if (!selectedCustomer || !requiredFoodTag || !requiredBevTag) return [];
+    if (!selectedCustomer || !normalizedRequiredFoodTag || !requiredBevTag) return [];
     return rankRecipesForRare(
       selectedCustomer,
-      requiredFoodTag,
+      normalizedRequiredFoodTag,
       requiredBevTag,
       new Set(rareRecipeIds),
       new Set(rareIngredientIds),
       new Set(rareDisabledIngredientIds),
       popularFoodTag,
       popularHateFoodTag,
+      rareMaxExtraIngredients,
       ownedIngredientQty,
     );
   }, [
     selectedCustomer,
-    requiredFoodTag,
+    normalizedRequiredFoodTag,
     requiredBevTag,
     rareRecipeIds,
     rareIngredientIds,
     rareDisabledIngredientIds,
     popularFoodTag,
     popularHateFoodTag,
+    rareMaxExtraIngredients,
     ownedIngredientQty,
   ]);
 
   const currentContextKey = useMemo(() => {
-    if (!selectedCustomer || !requiredFoodTag || !requiredBevTag) return null;
-    return buildRareContextKey(selectedCustomer.id, requiredFoodTag, requiredBevTag);
-  }, [selectedCustomer, requiredFoodTag, requiredBevTag]);
+    if (!selectedCustomer || !normalizedRequiredFoodTag || !requiredBevTag) return null;
+    return buildRareContextKey(selectedCustomer.id, normalizedRequiredFoodTag, requiredBevTag);
+  }, [selectedCustomer, normalizedRequiredFoodTag, requiredBevTag]);
 
   const favoriteRecipeKeys = useMemo(() => {
     if (!selectedCustomer) return [];
@@ -290,7 +309,7 @@ export function RarePage() {
     return withMeta.map((x) => x.b);
   }, [rawBevResults, rareBeveragePriceSort]);
 
-  const hasResults = requiredFoodTag && requiredBevTag && (recipeResults.length > 0 || beverageResults.length > 0);
+  const hasResults = normalizedRequiredFoodTag && requiredBevTag && (recipeResults.length > 0 || beverageResults.length > 0);
 
   return (
     <div className="space-y-4">
@@ -434,7 +453,11 @@ export function RarePage() {
         <div className="flex gap-2 flex-wrap">
           {visibleCustomers.map((c) => {
             const isSelected = selectedCustomerId === c.id;
-            const hasTags = rareCustomerTags[c.id]?.food && rareCustomerTags[c.id]?.bev;
+            const savedFoodTag = rareCustomerTags[c.id]?.food ?? null;
+            const hasTags =
+              !!savedFoodTag &&
+              isOrderableRareFoodTag(savedFoodTag) &&
+              !!rareCustomerTags[c.id]?.bev;
             return (
               <button key={c.id} onClick={() => handleSelectCustomer(c)}
                 className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all cursor-pointer relative ${isSelected ? 'bg-primary/10 ring-2 ring-primary shadow-sm' : 'hover:bg-secondary'}`}>
@@ -477,8 +500,8 @@ export function RarePage() {
               <div>
                 <p className="text-sm font-semibold mb-2">点单料理 Tag:</p>
                 <div className="flex gap-1 flex-wrap">
-                  {selectedCustomer.positiveTags.map((tag) => (
-                    <Button key={tag} size="sm" variant={requiredFoodTag === tag ? 'default' : 'outline'} onClick={() => setFoodTag(tag)} className="text-xs h-7 rounded-full">{tag}</Button>
+                  {selectableFoodTags.map((tag) => (
+                    <Button key={tag} size="sm" variant={normalizedRequiredFoodTag === tag ? 'default' : 'outline'} onClick={() => setFoodTag(tag)} className="text-xs h-7 rounded-full">{tag}</Button>
                   ))}
                 </div>
               </div>
@@ -617,7 +640,7 @@ export function RarePage() {
         </div>
       )}
 
-      {requiredFoodTag && requiredBevTag && recipeResults.length === 0 && (
+      {normalizedRequiredFoodTag && requiredBevTag && recipeResults.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">没有找到符合条件的料理</div>
       )}
     </div>
