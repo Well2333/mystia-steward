@@ -52,6 +52,13 @@ function buildRareContextKey(customerId: number, foodTag: string, bevTag: string
   return `${customerId}|${foodTag}|${bevTag}`;
 }
 
+function getMappedTagHint(mapping: Record<string, string> | undefined, tag: string): string | null {
+  const hint = mapping?.[tag];
+  if (!hint) return null;
+  const normalized = hint.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
 
 export function RarePage() {
   const place = useGameStore((state) => state.rareSelectedPlace);
@@ -483,7 +490,21 @@ export function RarePage() {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <span className="text-xs text-muted-foreground mr-1">喜好:</span>
-                  {selectedCustomer.positiveTags.map((t) => <TagBadge key={t} tag={t} variant="preferred" />)}
+                  {selectedCustomer.positiveTags.map((t) => {
+                    const hint = getMappedTagHint(selectedCustomer.positiveTagMapping, t);
+                    if (hint) {
+                      return (
+                        <TagBadge
+                          key={t}
+                          tag={`${t}（${hint}）`}
+                          variant="preferred"
+                        />
+                      );
+                    }
+                    return (
+                      <TagBadge key={t} tag={t} variant="preferred" />
+                    );
+                  })}
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <span className="text-xs text-muted-foreground mr-1">厌恶:</span>
@@ -491,7 +512,21 @@ export function RarePage() {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <span className="text-xs text-muted-foreground mr-1">酒水:</span>
-                  {selectedCustomer.beverageTags.map((t) => <TagBadge key={t} tag={t} variant="default" />)}
+                  {selectedCustomer.beverageTags.map((t) => {
+                    const hint = getMappedTagHint(selectedCustomer.beverageTagMapping, t);
+                    if (hint) {
+                      return (
+                        <TagBadge
+                          key={t}
+                          tag={`${t}（${hint}）`}
+                          variant="default"
+                        />
+                      );
+                    }
+                    return (
+                      <TagBadge key={t} tag={t} variant="default" />
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -501,7 +536,15 @@ export function RarePage() {
                 <p className="text-sm font-semibold mb-2">点单料理 Tag:</p>
                 <div className="flex gap-1 flex-wrap">
                   {selectableFoodTags.map((tag) => (
-                    <Button key={tag} size="sm" variant={normalizedRequiredFoodTag === tag ? 'default' : 'outline'} onClick={() => setFoodTag(tag)} className="text-xs h-7 rounded-full">{tag}</Button>
+                    <Button
+                      key={tag}
+                      size="sm"
+                      variant={normalizedRequiredFoodTag === tag ? 'default' : 'outline'}
+                      onClick={() => setFoodTag(tag)}
+                      className="text-xs h-7 rounded-full"
+                    >
+                      {tag}
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -509,7 +552,15 @@ export function RarePage() {
                 <p className="text-sm font-semibold mb-2">点单酒水 Tag:</p>
                 <div className="flex gap-1 flex-wrap">
                   {selectedCustomer.beverageTags.map((tag) => (
-                    <Button key={tag} size="sm" variant={requiredBevTag === tag ? 'default' : 'outline'} onClick={() => setBevTag(tag)} className="text-xs h-7 rounded-full">{tag}</Button>
+                    <Button
+                      key={tag}
+                      size="sm"
+                      variant={requiredBevTag === tag ? 'default' : 'outline'}
+                      onClick={() => setBevTag(tag)}
+                      className="text-xs h-7 rounded-full"
+                    >
+                      {tag}
+                    </Button>
                   ))}
                 </div>
               </div>

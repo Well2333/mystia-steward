@@ -88,6 +88,8 @@ export interface ICustomerRare {
   // 顾客厌恶标签（偏好关系）
   negativeTags: string[];
   beverageTags: string[];
+  positiveTagMapping?: Record<string, string>;
+  beverageTagMapping?: Record<string, string>;
   collection: boolean;
   evaluation: Record<string, string>;
   spellCards: {
