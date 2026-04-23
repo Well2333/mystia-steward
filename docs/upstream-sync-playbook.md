@@ -1,6 +1,6 @@
 # 上游数据同步操作手册
 
-本文档用于沉淀可复用的上游同步流程，避免把时效日志写入仓库记忆文档。
+本文档仅用于沉淀“从上游拉取、同步到本地、执行验证”的可复用流程。
 
 ## 适用范围
 
@@ -71,12 +71,6 @@ bash scripts/run-playwright-advanced-acceptance.sh
 
 - 检查产物目录：.playwright-cli/tmp/YYYY-MM-DD_HH:MM/
 
-8. 文档落地
-
-- 可复用规则：更新 docs/upstream-sync-playbook.md
-- 时效记录：新增 docs/sync-records/<日期>-upstream-sync.md
-- 禁止把时效日志写回 docs/repo-memory.md
-
 ## 通过标准
 
 - lint/build 通过
@@ -88,4 +82,3 @@ bash scripts/run-playwright-advanced-acceptance.sh
 
 - 只更新数据不更新 sprite 导致图标错位
 - 上游新增角色后 id 顺序变化未同步，导致 index 错配
-- 把临时日志写进 repo-memory，后续被误改回

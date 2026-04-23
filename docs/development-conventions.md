@@ -8,6 +8,7 @@
 - 仓库长期记忆、项目状态与全局知识，统一存放在 docs 目录。
 - 禁止将仓库级长期记忆沉淀到仓库外部或其他非 docs 目录。
 - 代码或规则发生变化后，必须同步更新相关 docs 文档，避免文档与实现脱节。
+- 任意更新的时效性记录统一写入 docs/updates/*.md（例如 `<日期>-update.md`），不要写入 repo-memory 或流程手册。
 
 ## 2. 代码与架构约定
 
@@ -48,4 +49,5 @@
 
 - 仓库运行记忆：docs/repo-memory.md
 - 料理机制知识库：docs/tmi-cooking-mechanics-knowledge-base.md
+- 更新记录规范：docs/updates/README.md
 - 用户流程与功能总览：README.md
