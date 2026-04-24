@@ -37,8 +37,21 @@ export function NormalPage() {
 
   const rawRecipeResults = useMemo(() => {
     if (!place) return [];
-    return computeNormalRecipeResults(place, new Set(normalRecipeIds), new Set<number>(), store.popularFoodTag, store.popularHateFoodTag);
-  }, [place, normalRecipeIds, store.popularFoodTag, store.popularHateFoodTag]);
+    return computeNormalRecipeResults(
+      place,
+      new Set(normalRecipeIds),
+      new Set<number>(),
+      store.popularFoodTag,
+      store.popularHateFoodTag,
+      store.famousShopEnabled,
+    );
+  }, [
+    place,
+    normalRecipeIds,
+    store.popularFoodTag,
+    store.popularHateFoodTag,
+    store.famousShopEnabled,
+  ]);
 
   const rawBevResults = useMemo(() => {
     if (!place) return [];
@@ -151,6 +164,11 @@ export function NormalPage() {
   );
 }
 
+function formatCookTime(seconds: number): string {
+  const rounded = Math.round(seconds * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
+}
+
 function RecipeCard({ r, idx, showRecipeProfit }: { r: INormalRecipeResult; idx: number; showRecipeProfit: boolean }) {
   return (
     <Card className="hover:shadow-md transition-shadow bg-card">
@@ -165,6 +183,7 @@ function RecipeCard({ r, idx, showRecipeProfit }: { r: INormalRecipeResult; idx:
               <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900">
                 {r.recipe.cooker || '未知厨具'}
               </span>
+              <span className="text-xs text-muted-foreground">基础烹饪时间 {formatCookTime(r.recipe.baseCookTime)}秒</span>
               {showRecipeProfit && <span className="text-xs text-muted-foreground">利润 ¥{r.profit}</span>}
             </div>
             <div className="flex flex-wrap gap-1 mt-1">

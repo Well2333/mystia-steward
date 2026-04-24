@@ -21,6 +21,7 @@ export interface ExportableConfig {
   // Settings
   pf: string | null;  // popularFoodTag
   ph: string | null;  // popularHateFoodTag
+  fs?: boolean;       // famousShopEnabled
   hm?: 'exgood' | 'score'; // rareRecipeFilterMode (v6)
   hs?: number;        // rareHideBelowScore (v5)
   hn?: boolean;       // rareHideNonPerfect (legacy <= v4)
@@ -65,6 +66,7 @@ export function exportConfig(state: {
   ownedIngredientQty: Record<number, number>;
   popularFoodTag: string | null;
   popularHateFoodTag: string | null;
+  famousShopEnabled: boolean;
   rareRecipeFilterMode: 'exgood' | 'score';
   rareHideBelowScore: number;
   rareMaxExtraIngredients: number;
@@ -94,6 +96,7 @@ export function exportConfig(state: {
     oq: state.ownedIngredientQty as Record<string, number>,
     pf: state.popularFoodTag,
     ph: state.popularHateFoodTag,
+    fs: state.famousShopEnabled,
     hm: state.rareRecipeFilterMode,
     hs: Math.max(0, Math.min(3, state.rareHideBelowScore)),
     mx: state.rareMaxExtraIngredients,
@@ -124,6 +127,7 @@ export function importConfig(str: string): {
   ownedIngredientQty: Record<number, number>;
   popularFoodTag: string | null;
   popularHateFoodTag: string | null;
+  famousShopEnabled: boolean;
   rareRecipeFilterMode: 'exgood' | 'score';
   rareHideBelowScore: number;
   rareMaxExtraIngredients: number;
@@ -208,6 +212,7 @@ export function importConfig(str: string): {
     ownedIngredientQty: config.oq ?? {},
     popularFoodTag: config.pf ?? null,
     popularHateFoodTag: config.ph ?? null,
+    famousShopEnabled: config.fs ?? false,
     rareRecipeFilterMode: importedFilterMode === 'score' ? 'score' : 'exgood',
     rareHideBelowScore: Math.max(0, Math.min(3, importedHideScore)),
     rareMaxExtraIngredients: Math.max(0, Math.min(4, config.mx ?? 4)),

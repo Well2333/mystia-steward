@@ -68,12 +68,17 @@ export function getDynamicTags(
   popularFoodTag: string | null,
   popularHateFoodTag: string | null,
   recipeTags: string[],
+  isFamousShop = false,
 ): string[] {
   const dynamic: string[] = [];
 
   if (recipePrice < 20) dynamic.push('实惠');
   if (recipePrice > 60) dynamic.push('昂贵');
   if (totalIngredientCount >= 5) dynamic.push('大份');
+
+  if (isFamousShop && recipeTags.includes('招牌')) {
+    dynamic.push('流行喜爱');
+  }
 
   if (popularFoodTag && recipeTags.includes(popularFoodTag)) {
     dynamic.push('流行喜爱');

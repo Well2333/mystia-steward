@@ -137,6 +137,7 @@ function evaluateCombo(
   requiredFoodTag: string,
   popularFoodTag: string | null,
   popularHateFoodTag: string | null,
+  isFamousShop: boolean,
 ): { foodScore: number; meetsRequiredFood: boolean; activeTags: string[]; cancelledTags: string[] } {
   const totalIngCount = recipe.ingredients.length + extraIngredients.length;
   const baseTags = new Set(recipe.positiveTags);
@@ -149,6 +150,7 @@ function evaluateCombo(
     popularFoodTag,
     popularHateFoodTag,
     [...baseTags],
+    isFamousShop,
   );
   const allTags = mergeAllTags(
     recipe.positiveTags,
@@ -173,6 +175,7 @@ export function rankRecipesForRare(
   popularHateFoodTag: string | null,
   maxExtraIngredients = 4,
   ownedIngredientQty: Record<number, number> = {},
+  isFamousShop = false,
 ): IRareRecipeResult[] {
   const results: IRareRecipeResult[] = [];
 
@@ -219,6 +222,7 @@ export function rankRecipesForRare(
       popularFoodTag,
       popularHateFoodTag,
       recipe.positiveTags,
+      isFamousShop,
     );
     const baseAllTags = mergeAllTags(recipe.positiveTags, [], baseDynamicTags);
     const { activeTags: baseActiveTags } = resolveTagConflicts(baseAllTags);
@@ -274,7 +278,15 @@ export function rankRecipesForRare(
 
     // Step b: 组合搜索加料方案（以最少加料为先，再按库存优先）
     let bestCombo: IIngredient[] | null = null;
-    let bestEval = evaluateCombo(recipe, [], customer, requiredFoodTag, popularFoodTag, popularHateFoodTag);
+    let bestEval = evaluateCombo(
+      recipe,
+      [],
+      customer,
+      requiredFoodTag,
+      popularFoodTag,
+      popularHateFoodTag,
+      isFamousShop,
+    );
     let bestReasonData: IngredientTagReasonResult = {
       reasonTagsByIngredient: {},
       assignedBaseReuseScore: 0,
@@ -336,7 +348,15 @@ export function rankRecipesForRare(
         const indices = Array.from({ length: k }, (_, i) => i);
         while (true) {
           const combo = indices.map((i) => candidates[i]);
-          const ev = evaluateCombo(recipe, combo, customer, requiredFoodTag, popularFoodTag, popularHateFoodTag);
+          const ev = evaluateCombo(
+            recipe,
+            combo,
+            customer,
+            requiredFoodTag,
+            popularFoodTag,
+            popularHateFoodTag,
+            isFamousShop,
+          );
           const cost = combo.reduce((sum, ingredient) => sum + ingredient.price, 0);
           const reasonData = buildExtraIngredientTagReasons(
             combo,

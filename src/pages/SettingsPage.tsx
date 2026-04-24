@@ -234,6 +234,19 @@ export function SettingsPage() {
               </Select>
             </div>
           </div>
+
+          <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/25 p-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">“明星店”效果</p>
+              <p className="text-xs text-muted-foreground">
+                开启后，含“招牌”标签的料理会额外获得“流行喜爱”效果（参考射命丸文符卡）。
+              </p>
+            </div>
+            <Switch
+              checked={store.famousShopEnabled}
+              onCheckedChange={store.setFamousShopEnabled}
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -258,6 +271,7 @@ export function SettingsPage() {
               }}
             />
           </div>
+
         </CardContent>
       </Card>
 

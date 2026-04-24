@@ -75,6 +75,7 @@ export function RarePage() {
   const rareDisabledIngredientIds = useGameStore((state) => state.rareDisabledIngredientIds);
   const popularFoodTag = useGameStore((state) => state.popularFoodTag);
   const popularHateFoodTag = useGameStore((state) => state.popularHateFoodTag);
+  const famousShopEnabled = useGameStore((state) => state.famousShopEnabled);
   const showRecipeProfit = useGameStore((state) => state.showRecipeProfit);
   const ownedIngredientQty = useGameStore((state) => state.ownedIngredientQty);
   const setRareSelectedPlace = useGameStore((state) => state.setRareSelectedPlace);
@@ -215,6 +216,7 @@ export function RarePage() {
       popularHateFoodTag,
       rareMaxExtraIngredients,
       ownedIngredientQty,
+      famousShopEnabled,
     );
   }, [
     selectedCustomer,
@@ -227,6 +229,7 @@ export function RarePage() {
     popularHateFoodTag,
     rareMaxExtraIngredients,
     ownedIngredientQty,
+    famousShopEnabled,
   ]);
 
   const currentContextKey = useMemo(() => {

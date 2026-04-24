@@ -23,6 +23,7 @@ interface GameState {
   // === 通用设置 ===
   popularFoodTag: string | null;
   popularHateFoodTag: string | null;
+  famousShopEnabled: boolean;
   hideUnowned: boolean;
   guideAutoOpenDisabled: boolean;
   showRecipeProfit: boolean;
@@ -69,6 +70,7 @@ interface GameState {
     ownedIngredientQty: Record<number, number>;
     popularFoodTag: string | null;
     popularHateFoodTag: string | null;
+    famousShopEnabled?: boolean;
     rareRecipeFilterMode?: RareRecipeFilterMode;
     rareHideBelowScore?: number;
     rareHideNonPerfect?: boolean;
@@ -85,6 +87,7 @@ interface GameState {
   }) => void;
   setPopularFoodTag: (tag: string | null) => void;
   setPopularHateFoodTag: (tag: string | null) => void;
+  setFamousShopEnabled: (v: boolean) => void;
   setHideUnowned: (v: boolean) => void;
   setGuideAutoOpenDisabled: (v: boolean) => void;
   setShowRecipeProfit: (v: boolean) => void;
@@ -152,6 +155,7 @@ export const useGameStore = create<GameState>()(
     (set, get) => ({
       popularFoodTag: null,
       popularHateFoodTag: null,
+      famousShopEnabled: false,
       hideUnowned: true,
       guideAutoOpenDisabled: false,
       showRecipeProfit: false,
@@ -263,6 +267,7 @@ export const useGameStore = create<GameState>()(
         ownedIngredientQty: data.ownedIngredientQty,
         popularFoodTag: data.popularFoodTag,
         popularHateFoodTag: data.popularHateFoodTag,
+        famousShopEnabled: data.famousShopEnabled ?? false,
         rareRecipeFilterMode: data.rareRecipeFilterMode === 'score' ? 'score' : 'exgood',
         rareHideBelowScore: Math.max(
           0,
@@ -286,6 +291,7 @@ export const useGameStore = create<GameState>()(
 
       setPopularFoodTag: (tag) => set({ popularFoodTag: tag }),
       setPopularHateFoodTag: (tag) => set({ popularHateFoodTag: tag }),
+      setFamousShopEnabled: (v) => set({ famousShopEnabled: v }),
       setHideUnowned: (v) => set({ hideUnowned: v }),
       setGuideAutoOpenDisabled: (v) => set({ guideAutoOpenDisabled: v }),
       setShowRecipeProfit: (v) => set({ showRecipeProfit: v }),

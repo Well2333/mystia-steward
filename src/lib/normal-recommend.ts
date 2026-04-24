@@ -41,10 +41,14 @@ function getRecipeEffectiveTags(
   recipe: IRecipe,
   popularFoodTag: string | null,
   popularHateFoodTag: string | null,
+  isFamousShop: boolean,
 ): string[] {
   const tags = [...recipe.positiveTags];
   if (recipe.price < 20 && !tags.includes('实惠')) tags.push('实惠');
   if (recipe.price > 60 && !tags.includes('昂贵')) tags.push('昂贵');
+  if (isFamousShop && recipe.positiveTags.includes('招牌')) {
+    if (!tags.includes('流行喜爱')) tags.push('流行喜爱');
+  }
   if (popularFoodTag && recipe.positiveTags.includes(popularFoodTag)) {
     if (!tags.includes('流行喜爱')) tags.push('流行喜爱');
   }
@@ -61,6 +65,7 @@ export function computeNormalRecipeResults(
   disabledIngredientIds: Set<number>,
   popularFoodTag: string | null,
   popularHateFoodTag: string | null,
+  isFamousShop = false,
 ): INormalRecipeResult[] {
   const customers = getNormalCustomersByPlace(place);
   if (customers.length === 0) return [];
@@ -76,7 +81,12 @@ export function computeNormalRecipeResults(
     });
     if (hasDisabledIngredient) continue;
 
-    const effectiveTags = getRecipeEffectiveTags(recipe, popularFoodTag, popularHateFoodTag);
+    const effectiveTags = getRecipeEffectiveTags(
+      recipe,
+      popularFoodTag,
+      popularHateFoodTag,
+      isFamousShop,
+    );
     const ingredientCost = getIngredientCost(recipe);
     const profit = recipe.price - ingredientCost;
 
