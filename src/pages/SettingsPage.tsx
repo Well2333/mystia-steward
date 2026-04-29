@@ -19,21 +19,13 @@ import { Sprite } from '@/components/Sprite';
 import allRecipes from '@/data/recipes.json';
 import allBeverages from '@/data/beverages.json';
 import allIngredients from '@/data/ingredients.json';
+import { ALL_FOOD_TAGS } from '@/lib/food-tags';
 import type { IRecipe, IBeverage, IIngredient } from '@/lib/types';
 import { recipeIndexMap, beverageIndexMap, ingredientIndexMap } from '@/lib/sprite-index';
 
 type SpriteType = 'recipe' | 'beverage' | 'ingredient';
 type IndexMap = Map<number, number>;
-
-const ALL_FOOD_TAGS = [
-  '肉', '水产', '素', '家常', '高级', '传说', '菌类',
-  '咸', '鲜', '甜', '辣', '苦', '酸',
-  '重油', '清淡', '下酒', '饱腹', '山珍', '海味',
-  '和风', '西式', '中华',
-  '力量涌现', '灼热', '凉爽', '猎奇', '文化底蕴', '不可思议',
-  '小巧', '梦幻', '特产', '果味', '汤羹', '烧烤',
-  '燃起来了', '毒', '适合拍照', '生',
-];
+const EMPTY_TAG_OPTION = '无';
 
 const FILTER_LABELS: Record<FilterState, { text: string; color: string }> = {
   all:      { text: '全可用', color: 'bg-green-500 text-white' },
@@ -215,20 +207,20 @@ export function SettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex items-center gap-3">
               <Label className="shrink-0 w-16">喜爱:</Label>
-              <Select value={store.popularFoodTag ?? '_none'} onValueChange={(v) => store.setPopularFoodTag(v === '_none' ? null : v)}>
+              <Select value={store.popularFoodTag ?? EMPTY_TAG_OPTION} onValueChange={(v) => store.setPopularFoodTag(v === EMPTY_TAG_OPTION ? null : v)}>
                 <SelectTrigger className="w-36"><SelectValue placeholder="无" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_none">无</SelectItem>
+                  <SelectItem value={EMPTY_TAG_OPTION}>无</SelectItem>
                   {ALL_FOOD_TAGS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex items-center gap-3">
               <Label className="shrink-0 w-16">厌恶:</Label>
-              <Select value={store.popularHateFoodTag ?? '_none'} onValueChange={(v) => store.setPopularHateFoodTag(v === '_none' ? null : v)}>
+              <Select value={store.popularHateFoodTag ?? EMPTY_TAG_OPTION} onValueChange={(v) => store.setPopularHateFoodTag(v === EMPTY_TAG_OPTION ? null : v)}>
                 <SelectTrigger className="w-36"><SelectValue placeholder="无" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_none">无</SelectItem>
+                  <SelectItem value={EMPTY_TAG_OPTION}>无</SelectItem>
                   {ALL_FOOD_TAGS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>

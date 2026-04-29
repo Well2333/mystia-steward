@@ -11,7 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
-.playwright-cli
+.playwright-cli/*
+!.playwright-cli/playwright-advanced-acceptance.fn.template.js
 
 # Editor directories and files
 .vscode/*

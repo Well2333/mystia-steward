@@ -2,6 +2,12 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { TPlace } from '@/lib/types';
 import { parseSaveFile } from '@/lib/save-parser';
+import {
+  DEFAULT_HIDDEN_SPECIAL_CUSTOMER_IDS,
+  mergeManagedSpecialHiddenCustomerIds,
+  resolveVisibleSpecialCustomerIds,
+  stripManagedSpecialExtraCustomerIds,
+} from '@/lib/special-customer-visibility';
 
 import allRecipes from '@/data/recipes.json';
 import allBeverages from '@/data/beverages.json';
@@ -164,7 +170,7 @@ export const useGameStore = create<GameState>()(
       ingredientFilter: {},
       normalSelectedPlace: null,
       rareSelectedPlace: null,
-      rareHiddenCustomerIds: [],
+      rareHiddenCustomerIds: DEFAULT_HIDDEN_SPECIAL_CUSTOMER_IDS,
       rareExtraCustomerIds: [],
       rareRecipeFilterMode: 'exgood',
       rareHideBelowScore: 3,
@@ -199,6 +205,15 @@ export const useGameStore = create<GameState>()(
           ownedIngredientQty[id] = qty;
           ownedIngredientIds.push(id);
         }
+
+        const importedVisibleSpecialCustomerIds = resolveVisibleSpecialCustomerIds(
+          data.collabStatus,
+          data.activatedDLC,
+        );
+        const importedPopularFoodTag = data.popularFoodTag;
+        const importedPopularHateFoodTag = importedPopularFoodTag
+          ? null
+          : data.popularHateFoodTag;
 
         set((s) => {
           const prevOwnedRecipeSet = new Set(s.ownedRecipeIds);
@@ -245,14 +260,25 @@ export const useGameStore = create<GameState>()(
             ingredientFilter[id] = preserveModified ? prev : 'all';
           }
 
+          const preservedExtraCustomerIds = stripManagedSpecialExtraCustomerIds(
+            s.rareExtraCustomerIds,
+          );
+
           return {
             ownedRecipeIds: resolvedRecipeIds,
             ownedBeverageIds: resolvedBeverageIds,
             ownedIngredientIds,
             ownedIngredientQty,
+            popularFoodTag: importedPopularFoodTag,
+            popularHateFoodTag: importedPopularHateFoodTag,
             recipeFilter,
             beverageFilter,
             ingredientFilter,
+            rareHiddenCustomerIds: mergeManagedSpecialHiddenCustomerIds(
+              s.rareHiddenCustomerIds,
+              importedVisibleSpecialCustomerIds,
+            ),
+            rareExtraCustomerIds: preservedExtraCustomerIds,
           };
         });
       },

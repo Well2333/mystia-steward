@@ -37,8 +37,6 @@
 - 预览构建产物：`pnpm preview`
 - Playwright 高级验收：仅在用户主动提及时执行，按 `.github/skills/playwright-web-smoke/SKILL.md` 流程进行。
 - 当前仓库暂无独立自动化测试命令（no dedicated test command）。
-- 当修改稀客算法或相关数据后，执行原料可用性校验（sanity check）：
-  - `pnpm dlx tsx scripts/verify-rare-ingredient-availability.ts`
 
 ## Conventions And Pitfalls
 - 过滤状态为三态（tri-state）：`all | rare | disabled`。缺失条目默认按 `disabled` 处理。

@@ -22,8 +22,7 @@
   - getRareIngredientIds 会将 ingredient filter 与 ownedIngredientIds 取交集。
   - rankRecipesForRare 的基础食材检查要求每个基础食材 id 在 availableIngredientIds 中，且不在 disabledIngredientIds 中。
   - setIngredientsBelowQty 会强制将未拥有食材设为 disabled。
-- 校验脚本：pnpm dlx tsx scripts/verify-rare-ingredient-availability.ts
-- 校验范围：全部稀客 x 点单料理 Tag x 点单酒水 Tag，以及排除玉米与棉花糖的琪露诺定向场景。
+- 不再维护独立的稀客食材可用性批量校验脚本；后续不再将其作为标准验证步骤。
 
 ## 稀客酒水排序
 

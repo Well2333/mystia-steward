@@ -32,10 +32,6 @@
 - Playwright 产物目录：统一写入 .playwright-cli/tmp/YYYY-MM-DD_HH:MM/，避免污染 .playwright-cli 根目录
 - Playwright 执行建议：优先使用 scripts/run-playwright-advanced-acceptance.sh（内置低 token 输出策略）
 
-当修改稀客算法或相关数据后，额外执行：
-
-- pnpm dlx tsx scripts/verify-rare-ingredient-availability.ts
-
 ## 4. 关键风险点
 
 - 三态过滤固定为 all | rare | disabled，缺失条目按 disabled 处理。

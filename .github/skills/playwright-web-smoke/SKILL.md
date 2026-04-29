@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 ## 作用
 
-在用户明确提出“执行 Playwright 验收”时，用 Playwright CLI 执行高级网页验收，覆盖导入存档、关键页面随机浏览、交互开关与响应式分辨率检查。
+在用户明确提出“执行 Playwright 验收”时，用 Playwright CLI 执行高级网页验收，覆盖导入存档、关键页面随机浏览、交互开关、错误提示、跨页状态生效与响应式分辨率检查。
 
 ## 何时使用
 
@@ -24,7 +24,7 @@ disable-model-invocation: true
 2. 使用 Playwright CLI：
    - 优先全局命令 `playwright-cli`
    - 否则使用 `npx @playwright/cli@latest`
-3. 示例存档存在：`.playwright-cli/Mystia#6.memory`。
+3. 示例存档存在：`.playwright-cli/Mystia#17.memory`。
 4. 验收需覆盖两组分辨率：
    - 横屏：`1920 x 1080`
    - 竖屏：`720 x 1600`
@@ -60,8 +60,10 @@ disable-model-invocation: true
    - `playwright-cli screenshot --filename=.playwright-cli/desktop-home.png`
 4. 在设置页导入示例存档
    - `playwright-cli goto http://127.0.0.1:4173/settings`
-   - 点击“选择存档文件”后执行：`playwright-cli upload .playwright-cli/Mystia#6.memory`
+   - 点击“选择存档文件”后执行：`playwright-cli upload .playwright-cli/Mystia#17.memory`
    - 校验导入成功文案（例如“导入成功”）是否出现。
+   - 校验导入后的流行料理标签符合样例存档，并继续保证“喜爱/厌恶”不同时出现。
+   - 额外注入一条非法配置字符串，确认设置页能给出明确错误提示。
    - 记录导入后页面状态快照：
    - `playwright-cli snapshot --depth=4 --filename=.playwright-cli/desktop-settings-after-import.yaml`
 5. 普客页随机浏览 3 个地区
@@ -70,12 +72,16 @@ disable-model-invocation: true
    - 保存至少一张普客页截图：`playwright-cli screenshot --filename=.playwright-cli/desktop-normal-random.png`
 6. 稀客页随机浏览
    - `playwright-cli goto http://127.0.0.1:4173/rare`
+   - 先验证样例存档开启的特殊稀客可见，未开启的联动/DLC 角色保持隐藏。
+   - 至少覆盖 1 次“添加稀客 -> 确认添加 -> 再移除”的完整用户操作。
    - 随机选择 1 个地区，并在该地区随机选择任意 3 个稀客
    - 对每个稀客随机切换点单料理/酒水词条，确认页面渲染与推荐结果区域无异常
+   - 至少对 1 个稀客覆盖“放宽料理过滤条件”“收藏菜品”“收藏酒水”三种交互，并确认状态发生变化。
    - 保存至少一张稀客页截图：`playwright-cli screenshot --filename=.playwright-cli/desktop-rare-random.png`
 7. 设置页开关稳定性
    - `playwright-cli goto http://127.0.0.1:4173/settings`
    - 遍历并切换“设置页当前可见的全部开关”至少一次，记录开关数量与切换次数
+   - 对“料理利润计算”这类会影响跨页展示的设置，需要额外确认切换后在普客页与稀客页都已生效，并在返回设置页后仍保持状态。
    - 若本页可见开关少于 3，不判失败，但需在结论里标注覆盖限制
    - 保存截图：`playwright-cli screenshot --filename=.playwright-cli/desktop-settings-toggle.png`
 8. 分辨率 B（720x1600）抽样复验
@@ -98,7 +104,7 @@ disable-model-invocation: true
 ## 输出目录约束
 
 - 允许写入：`.playwright-cli/tmp/YYYY-MM-DD_HH:MM/`
-- 禁止写入：`.playwright-cli` 根目录（仅 `Mystia#6.memory` 可保留在根目录）
+- 禁止写入：`.playwright-cli` 根目录（仅 `Mystia#17.memory` 可保留在根目录）
 - 验收脚本临时文件（如 run-code 函数文件）也应放在对应时间目录内
 
 ## 浏览器缺失时的处理
@@ -115,10 +121,14 @@ disable-model-invocation: true
 ## 验收标准
 
 - 页面可成功打开，且 `document.readyState` 为 `complete`。
-- 示例存档 `.playwright-cli/Mystia#6.memory` 可成功导入。
+- 示例存档 `.playwright-cli/Mystia#17.memory` 可成功导入。
+- 设置页对非法配置字符串给出明确错误提示。
 - 普客页随机 3 地区浏览正常。
+- 普客页至少验证 1 次“价格优先”排序仍按价格降序显示。
 - 稀客页随机 1 地区下的任意 3 名稀客，随机切换词条后仍正常。
+- 稀客页额外验证：已开启特殊稀客可见、未开启特殊角色隐藏、添加/移除稀客正常、收藏状态正常、放宽过滤后结果数量不减少。
 - 设置页可见开关切换不报错，且覆盖数有记录。
+- 若启用了利润显示，则普客页与稀客页都能看到利润字段，且返回设置页后开关状态保持。
 - 快照与截图生成成功，且截图前已关闭使用指南（非指南改动场景）。
 - 桌面与移动分辨率均完成检查。
 - 移动端包含至少一次交互抽查，不仅是静态截图。

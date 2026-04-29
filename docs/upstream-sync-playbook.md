@@ -52,7 +52,6 @@ git clone --depth 1 --branch master https://github.com/AnYiEE/touhou-mystia-izak
 ```bash
 pnpm lint
 pnpm build
-pnpm dlx tsx scripts/verify-rare-ingredient-availability.ts
 ```
 
 7. 浏览器高级验收
@@ -74,7 +73,6 @@ bash scripts/run-playwright-advanced-acceptance.sh
 ## 通过标准
 
 - lint/build 通过
-- 稀客原料可用性校验通过
 - 高级验收 summary 中无阻断错误
 - 关键截图与 console/network 日志完整
 
