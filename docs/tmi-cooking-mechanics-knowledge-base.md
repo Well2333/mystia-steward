@@ -156,22 +156,21 @@
 ### 6.1 料理流行标签
 
 - 存档导入优先读取 `playerPartial.popLikeFoodTags` 与 `playerPartial.popHateFoodTags`；若旧存档仍放在 `storagePartial`，则按兼容路径回退读取。
-- 当前仓库仍采用“单个料理流行标签 + 正/负方向”的模型，不做多标签叠加。
-- 实际存档中的料理流行数组保存为数字 tag id；仓库按现有料理标签顺序把数字 id 映射回标签字符串。
-- 若存档数组里存在多个值，只取第一个能映射到当前料理标签集合的有效值；没有有效值则按未设置处理。
-- 存档导入后会强制保证“流行喜好”和“流行厌恶”互斥；若检测到喜好标签，则厌恶标签会被清空。
+- 当前仓库允许“流行喜爱”和“流行厌恶”同时存在，分别作为独立偏好字段处理。
+- 实际存档中的料理流行数组保存为数字 tag id；由于当前无法可靠确认保存枚举顺序，数字值解析已临时禁用，仅保留字符串值兜底。
+- 若存档数组里存在多个值，只取第一个能直接作为当前料理标签字符串识别的有效值；没有有效值则按未设置处理。
 - 导入成功后，结果直接写入全局状态 `popularFoodTag` 与 `popularHateFoodTag`，由普客与稀客推荐共同消费。
+- 上游仓库仅能佐证 `招牌`、`清淡`、`流行喜爱`、`流行厌恶` 等标签及其使用方式，未直接给出 Mystia#x.memory 的数字枚举源。
 
 ### 6.2 暂不接入的存档字段
 
 - `popLikeBevTags`、`popHateBevTags` 当前只做解析保留，不驱动 UI、推荐或配置导出。
-- `rewindMode` 当前只做解析保留，不影响现有推荐与筛选逻辑。
+- `rewindMode` 当前视为无效字段，不参与现有推荐与筛选逻辑。
 - 本轮没有新增配置字段，因此配置导出版本保持不变。
 
 ### 6.3 联动稀客显隐
 
 - 存档导入优先读取 `playerPartial.collabStatus`；若旧存档仍放在 `storagePartial`，则按兼容路径回退读取。
-- `rewindMode` 同样优先读取 `playerPartial.rewindMode`，兼容回退到 `storagePartial.rewindMode`。
 - 全部联动角色与 DLC9（MetaMystia 模组）角色默认加入 `rareHiddenCustomerIds`。
 - 存档导入只会根据已开启的联动 key 与 DLC 激活状态，解除这些角色的隐藏状态；不会再通过 `rareExtraCustomerIds` 让它们跨地区强行显示。
 - 已实现映射：`MC_Gensokyo -> [30]`、`3FARIES_Collab -> [31]`、`TBS_Kokoro -> [41]`、`TBC2_Collab -> [36, 37, 38]`。

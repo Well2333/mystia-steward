@@ -2,7 +2,7 @@
  * 存档解析器：解析 Mystia#x.memory 文件
  */
 
-import { ALL_FOOD_TAGS, ALL_FOOD_TAG_SET } from '@/lib/food-tags';
+import { ALL_FOOD_TAG_SET } from '@/lib/food-tags';
 
 type SaveTagValue = string | number;
 
@@ -17,21 +17,6 @@ export interface ParsedSaveData {
   popularBeverageTags: SaveTagValue[];
   popularHateBeverageTags: SaveTagValue[];
   collabStatus: Record<string, boolean>;
-  rewindMode: unknown;
-}
-
-function normalizeExclusivePopularFoodTags(tags: {
-  popularFoodTag: string | null;
-  popularHateFoodTag: string | null;
-}): { popularFoodTag: string | null; popularHateFoodTag: string | null } {
-  if (tags.popularFoodTag) {
-    return {
-      popularFoodTag: tags.popularFoodTag,
-      popularHateFoodTag: null,
-    };
-  }
-
-  return tags;
 }
 
 interface SaveFile {
@@ -44,7 +29,6 @@ interface SaveFile {
     popLikeBevTags?: unknown;
     popHateBevTags?: unknown;
     collabStatus?: unknown;
-    rewindMode?: unknown;
   };
   storagePartialDLC?: Record<
     string,
@@ -61,7 +45,6 @@ interface SaveFile {
     popLikeBevTags?: unknown;
     popHateBevTags?: unknown;
     collabStatus?: unknown;
-    rewindMode?: unknown;
   };
   allActivatedDLC: string[];
 }
@@ -78,12 +61,8 @@ function resolveFoodTagValue(value: SaveTagValue): string | null {
     return ALL_FOOD_TAG_SET.has(value) ? value : null;
   }
 
-  if (!Number.isInteger(value) || value < 0 || value >= ALL_FOOD_TAGS.length) {
-    return null;
-  }
-
-  // Save files persist food trend tags as numeric enum indices.
-  return ALL_FOOD_TAGS[value] ?? null;
+  // 数字枚举顺序暂不信任，先禁用以避免把错误编号映射成错误标签。
+  return null;
 }
 
 function getFirstValidFoodTag(value: unknown): string | null {
@@ -112,11 +91,6 @@ export function parseSaveFile(jsonText: string): ParsedSaveData {
   const popLikeBevTags = save.playerPartial.popLikeBevTags ?? save.storagePartial.popLikeBevTags;
   const popHateBevTags = save.playerPartial.popHateBevTags ?? save.storagePartial.popHateBevTags;
   const collabStatus = save.playerPartial.collabStatus ?? save.storagePartial.collabStatus;
-  const rewindMode = save.playerPartial.rewindMode ?? save.storagePartial.rewindMode ?? null;
-  const normalizedPopularFoodTags = normalizeExclusivePopularFoodTags({
-    popularFoodTag: getFirstValidFoodTag(popLikeFoodTags),
-    popularHateFoodTag: getFirstValidFoodTag(popHateFoodTags),
-  });
 
   // 合并基础版料理 (save stores recipeId, not id)
   const recipeGameIds = [...save.storagePartial.recipes];
@@ -160,11 +134,10 @@ export function parseSaveFile(jsonText: string): ParsedSaveData {
     beverages,
     playerLevel: save.playerPartial.level,
     activatedDLC: save.allActivatedDLC,
-    popularFoodTag: normalizedPopularFoodTags.popularFoodTag,
-    popularHateFoodTag: normalizedPopularFoodTags.popularHateFoodTag,
+    popularFoodTag: getFirstValidFoodTag(popLikeFoodTags),
+    popularHateFoodTag: getFirstValidFoodTag(popHateFoodTags),
     popularBeverageTags: normalizeTagValueArray(popLikeBevTags),
     popularHateBeverageTags: normalizeTagValueArray(popHateBevTags),
     collabStatus: normalizeCollabStatus(collabStatus),
-    rewindMode,
   };
 }

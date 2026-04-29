@@ -211,9 +211,7 @@ export const useGameStore = create<GameState>()(
           data.activatedDLC,
         );
         const importedPopularFoodTag = data.popularFoodTag;
-        const importedPopularHateFoodTag = importedPopularFoodTag
-          ? null
-          : data.popularHateFoodTag;
+        const importedPopularHateFoodTag = data.popularHateFoodTag;
 
         set((s) => {
           const prevOwnedRecipeSet = new Set(s.ownedRecipeIds);
