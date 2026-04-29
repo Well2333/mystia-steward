@@ -27,7 +27,7 @@ export const COLLAB_CUSTOMER_IDS = uniqueNumberIds(
 );
 
 export const META_MYSTIA_CUSTOMER_IDS = uniqueNumberIds(
-  (allRareCustomers as ICustomerRare[])
+  (allRareCustomers as unknown as ICustomerRare[])
     .filter((customer) => customer.dlc === 9)
     .map((customer) => customer.id),
 );

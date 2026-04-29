@@ -28,6 +28,7 @@
 - 静态检查：pnpm lint
 - 构建验证：pnpm build
 - 构建预览：pnpm preview
+- 推送到 GitHub 或发起 PR 之前，必须先在本地完成 pnpm build 并确认通过。
 - Playwright 高级验收：仅在用户主动提及时执行，按 .github/skills/playwright-web-smoke/SKILL.md 流程进行
 - Playwright 产物目录：统一写入 .playwright-cli/tmp/YYYY-MM-DD_HH:MM/，避免污染 .playwright-cli 根目录
 - Playwright 执行建议：优先使用 scripts/run-playwright-advanced-acceptance.sh（内置低 token 输出策略）
