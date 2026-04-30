@@ -2,9 +2,17 @@
  * 存档解析器：解析 Mystia#x.memory 文件
  */
 
+import foodTagIdMap from '@/data/food-tag-id-map.json';
 import { ALL_FOOD_TAG_SET } from '@/lib/food-tags';
 
 type SaveTagValue = string | number;
+
+const FOOD_TAG_NAME_ALIASES: Readonly<Record<string, string>> = {
+  '流行·喜爱': '流行喜爱',
+  '流行·厌恶': '流行厌恶',
+};
+
+const FOOD_TAG_ID_MAP: Readonly<Record<string, string>> = foodTagIdMap;
 
 export interface ParsedSaveData {
   recipeGameIds: number[]; // recipeId values from save (game-internal IDs)
@@ -14,6 +22,7 @@ export interface ParsedSaveData {
   activatedDLC: string[];
   popularFoodTag: string | null;
   popularHateFoodTag: string | null;
+  famousShopEnabled: boolean;
   popularBeverageTags: SaveTagValue[];
   popularHateBeverageTags: SaveTagValue[];
   collabStatus: Record<string, boolean>;
@@ -29,6 +38,7 @@ interface SaveFile {
     popLikeBevTags?: unknown;
     popHateBevTags?: unknown;
     collabStatus?: unknown;
+    trackedSwitch?: unknown;
   };
   storagePartialDLC?: Record<
     string,
@@ -38,6 +48,9 @@ interface SaveFile {
       beverages: Record<string, number>;
     }
   >;
+  dayScenePartial?: {
+    trackedSwitch?: unknown;
+  };
   playerPartial: {
     level: number;
     popLikeFoodTags?: unknown;
@@ -45,6 +58,7 @@ interface SaveFile {
     popLikeBevTags?: unknown;
     popHateBevTags?: unknown;
     collabStatus?: unknown;
+    trackedSwitch?: unknown;
   };
   allActivatedDLC: string[];
 }
@@ -56,13 +70,16 @@ function normalizeTagValueArray(value: unknown): SaveTagValue[] {
   );
 }
 
-function resolveFoodTagValue(value: SaveTagValue): string | null {
-  if (typeof value === 'string') {
-    return ALL_FOOD_TAG_SET.has(value) ? value : null;
-  }
+function normalizeFoodTagName(value: string): string {
+  return FOOD_TAG_NAME_ALIASES[value] ?? value;
+}
 
-  // 数字枚举顺序暂不信任，先禁用以避免把错误编号映射成错误标签。
-  return null;
+function resolveFoodTagValue(value: SaveTagValue): string | null {
+  const resolvedTag = typeof value === 'string'
+    ? normalizeFoodTagName(value)
+    : normalizeFoodTagName(FOOD_TAG_ID_MAP[String(value)] ?? '');
+
+  return ALL_FOOD_TAG_SET.has(resolvedTag) ? resolvedTag : null;
 }
 
 function getFirstValidFoodTag(value: unknown): string | null {
@@ -73,7 +90,7 @@ function getFirstValidFoodTag(value: unknown): string | null {
   return null;
 }
 
-function normalizeCollabStatus(value: unknown): Record<string, boolean> {
+function normalizeBooleanRecord(value: unknown): Record<string, boolean> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
 
   const status: Record<string, boolean> = {};
@@ -91,6 +108,12 @@ export function parseSaveFile(jsonText: string): ParsedSaveData {
   const popLikeBevTags = save.playerPartial.popLikeBevTags ?? save.storagePartial.popLikeBevTags;
   const popHateBevTags = save.playerPartial.popHateBevTags ?? save.storagePartial.popHateBevTags;
   const collabStatus = save.playerPartial.collabStatus ?? save.storagePartial.collabStatus;
+  const trackedSwitch = save.dayScenePartial?.trackedSwitch
+    ?? save.playerPartial.trackedSwitch
+    ?? save.storagePartial.trackedSwitch;
+  const trackedSwitchState = normalizeBooleanRecord(trackedSwitch);
+  const famousShopEnabled = trackedSwitchState.Aya_FamousIzakaya === true;
+  const popularFoodTag = getFirstValidFoodTag(popLikeFoodTags);
 
   // 合并基础版料理 (save stores recipeId, not id)
   const recipeGameIds = [...save.storagePartial.recipes];
@@ -134,10 +157,11 @@ export function parseSaveFile(jsonText: string): ParsedSaveData {
     beverages,
     playerLevel: save.playerPartial.level,
     activatedDLC: save.allActivatedDLC,
-    popularFoodTag: getFirstValidFoodTag(popLikeFoodTags),
+    popularFoodTag: famousShopEnabled && popularFoodTag === '招牌' ? null : popularFoodTag,
     popularHateFoodTag: getFirstValidFoodTag(popHateFoodTags),
+    famousShopEnabled,
     popularBeverageTags: normalizeTagValueArray(popLikeBevTags),
     popularHateBeverageTags: normalizeTagValueArray(popHateBevTags),
-    collabStatus: normalizeCollabStatus(collabStatus),
+    collabStatus: normalizeBooleanRecord(collabStatus),
   };
 }

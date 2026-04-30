@@ -269,6 +269,7 @@ export const useGameStore = create<GameState>()(
             ownedIngredientQty,
             popularFoodTag: importedPopularFoodTag,
             popularHateFoodTag: importedPopularHateFoodTag,
+            famousShopEnabled: data.famousShopEnabled,
             recipeFilter,
             beverageFilter,
             ingredientFilter,

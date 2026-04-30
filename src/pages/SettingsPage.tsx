@@ -69,7 +69,12 @@ export function SettingsPage() {
         const s = useGameStore.getState();
         const recipeCount = Object.values(s.recipeFilter).filter((v) => v !== 'disabled').length;
         const bevCount = Object.values(s.beverageFilter).filter((v) => v !== 'disabled').length;
-        setImportStatus(`导入成功! 料理: ${recipeCount}, 酒水: ${bevCount}`);
+        const popularFoodTag = s.popularFoodTag ?? EMPTY_TAG_OPTION;
+        const popularHateFoodTag = s.popularHateFoodTag ?? EMPTY_TAG_OPTION;
+        const famousShopStatus = s.famousShopEnabled ? '开启' : '关闭';
+        setImportStatus(
+          `导入成功! 料理: ${recipeCount}, 酒水: ${bevCount}。流行料理标签: 喜爱=${popularFoodTag}，厌恶=${popularHateFoodTag}，明星店=${famousShopStatus}`,
+        );
       } catch {
         setImportStatus('导入失败: 文件格式无效');
       }

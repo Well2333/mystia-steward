@@ -4,6 +4,7 @@
 
 - 工程约定与开发流程：docs/development-conventions.md
 - 料理机制规则知识库：docs/tmi-cooking-mechanics-knowledge-base.md
+- Addressables 标签提取手册：docs/addressables-tag-mapping-playbook.md
 - 上游同步操作手册（可复用流程）：docs/upstream-sync-playbook.md
 - 更新记录目录（时效日志）：docs/updates/*.md
 - 本文档（repo-memory）用于记录仓库级运行事实与近期决策摘要。

@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.game
 *.local
 .playwright-cli/*
 !.playwright-cli/playwright-advanced-acceptance.fn.template.js
