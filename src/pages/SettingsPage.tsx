@@ -269,6 +269,19 @@ export function SettingsPage() {
             />
           </div>
 
+          <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/25 p-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">彩蛋料理特殊显示</p>
+              <p className="text-xs text-muted-foreground">
+                控制稀客页中的彩蛋说明、彩虹样式与条件置顶展示，不影响推荐计算结果。
+              </p>
+            </div>
+            <Switch
+              checked={store.rareEasterVisualEnabled}
+              onCheckedChange={store.setRareEasterVisualEnabled}
+            />
+          </div>
+
         </CardContent>
       </Card>
 

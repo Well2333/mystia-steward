@@ -25,6 +25,7 @@ import {
 } from '@/lib/rare-recommend';
 import { recipeIndexMap, beverageIndexMap, rareCustomerIndexMap } from '@/lib/sprite-index';
 import type { ICustomerRare, IRareRecipeResult, TPlace, TRating } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 const RATING_COLORS: Record<TRating, string> = {
   ExGood: 'bg-pink-500 text-white',
@@ -43,6 +44,17 @@ const RATING_LABELS: Record<TRating, string> = {
 };
 const EMPTY_BEVERAGES: ReturnType<typeof rankBeveragesForRare> = [];
 const NON_ORDERABLE_RARE_FOOD_TAGS = new Set(['流行喜爱', '流行厌恶']);
+const MEDICINE_CUSTOMER_ID = 4001;
+const EASTER_DISPLAY_NOTES: Record<number, string[]> = {
+  4008: ['蕾米莉亚对猩红恶魔蛋糕的评价为4分。'],
+  1003: ['饕餮尤魔对油豆腐的评价为3分。'],
+  10: ['雾雨魔理沙对牛肉鸳鸯火锅的评价为4分。'],
+  1000: ['河城荷取对黄瓜的评价为3分。'],
+  2006: ['古明地恋对无意识妖怪慕斯的评价为极差。'],
+  5001: ['绵月丰姬对蜜桃红烧肉的评价为极差。'],
+  5002: ['绵月依姬对蜜桃红烧肉的评价为极差。'],
+  1001: ['犬走椛对可可豆的评价为极差。'],
+};
 
 function isOrderableRareFoodTag(tag: string): boolean {
   return !NON_ORDERABLE_RARE_FOOD_TAGS.has(tag);
@@ -77,6 +89,7 @@ export function RarePage() {
   const popularHateFoodTag = useGameStore((state) => state.popularHateFoodTag);
   const famousShopEnabled = useGameStore((state) => state.famousShopEnabled);
   const showRecipeProfit = useGameStore((state) => state.showRecipeProfit);
+  const rareEasterVisualEnabled = useGameStore((state) => state.rareEasterVisualEnabled);
   const ownedIngredientQty = useGameStore((state) => state.ownedIngredientQty);
   const setRareSelectedPlace = useGameStore((state) => state.setRareSelectedPlace);
   const setRareCustomerTag = useGameStore((state) => state.setRareCustomerTag);
@@ -140,6 +153,10 @@ export function RarePage() {
   const requiredBevTag = savedTags?.bev ?? null;
   const selectableFoodTags = useMemo(
     () => (selectedCustomer ? selectedCustomer.positiveTags.filter(isOrderableRareFoodTag) : []),
+    [selectedCustomer],
+  );
+  const selectedCustomerEasterNotes = useMemo(
+    () => (selectedCustomer ? (EASTER_DISPLAY_NOTES[selectedCustomer.id] ?? []) : []),
     [selectedCustomer],
   );
 
@@ -255,7 +272,25 @@ export function RarePage() {
     const favoriteRank = new Map(favoriteRecipeKeys.map((id, idx) => [id, idx]));
     const priceDirection = rareRecipePriceSort === 'asc' ? 1 : -1;
 
-    const favoriteItems = filtered.filter(({ r }) => favoriteRank.has(r.recipe.id));
+    const isPinnedEaster = (r: IRareRecipeResult) =>
+      rareEasterVisualEnabled && r.isEasterPinned && r.meetsRequiredFood;
+
+    const favoriteEasterItems = filtered.filter(
+      ({ r }) => favoriteRank.has(r.recipe.id) && isPinnedEaster(r),
+    );
+    favoriteEasterItems.sort((a, b) => {
+      const aFavRank = favoriteRank.get(a.r.recipe.id) ?? Infinity;
+      const bFavRank = favoriteRank.get(b.r.recipe.id) ?? Infinity;
+      if (aFavRank !== bFavRank) return aFavRank - bFavRank;
+      if (a.r.recipe.price !== b.r.recipe.price) {
+        return priceDirection * (a.r.recipe.price - b.r.recipe.price);
+      }
+      return a.idx - b.idx;
+    });
+
+    const favoriteItems = filtered.filter(
+      ({ r }) => favoriteRank.has(r.recipe.id) && !isPinnedEaster(r),
+    );
     favoriteItems.sort((a, b) => {
       const aFavRank = favoriteRank.get(a.r.recipe.id) ?? Infinity;
       const bFavRank = favoriteRank.get(b.r.recipe.id) ?? Infinity;
@@ -266,7 +301,19 @@ export function RarePage() {
       return a.idx - b.idx;
     });
 
-    const normalItems = filtered.filter(({ r }) => !favoriteRank.has(r.recipe.id));
+    const easterItems = filtered.filter(
+      ({ r }) => !favoriteRank.has(r.recipe.id) && isPinnedEaster(r),
+    );
+    easterItems.sort((a, b) => {
+      if (a.r.recipe.price !== b.r.recipe.price) {
+        return priceDirection * (a.r.recipe.price - b.r.recipe.price);
+      }
+      return a.idx - b.idx;
+    });
+
+    const normalItems = filtered.filter(
+      ({ r }) => !favoriteRank.has(r.recipe.id) && !isPinnedEaster(r),
+    );
     normalItems.sort((a, b) => {
       const aPassFilter = rareRecipeFilterMode === 'exgood'
         ? a.r.rating === 'ExGood'
@@ -284,7 +331,9 @@ export function RarePage() {
     });
 
     return [
+      ...favoriteEasterItems,
       ...favoriteItems,
+      ...easterItems,
       ...normalItems.filter((x) => {
         const passFilter = rareRecipeFilterMode === 'exgood'
           ? x.r.rating === 'ExGood'
@@ -294,6 +343,7 @@ export function RarePage() {
     ].map((x) => x.r);
   }, [
     rawRecipeResults,
+    rareEasterVisualEnabled,
     rareRecipeFilterMode,
     rareHideBelowScore,
     rareMaxExtraIngredients,
@@ -531,6 +581,18 @@ export function RarePage() {
                     );
                   })}
                 </div>
+                {selectedCustomer.id === MEDICINE_CUSTOMER_ID && (
+                  <div className="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
+                    梅蒂欣对黑暗物质的评价为3分。
+                  </div>
+                )}
+                {rareEasterVisualEnabled && selectedCustomerEasterNotes.length > 0 && (
+                  <div className="space-y-1 rounded-md border border-fuchsia-300 bg-fuchsia-50 px-2 py-1 text-xs text-fuchsia-800">
+                    {selectedCustomerEasterNotes.map((note) => (
+                      <p key={note}>{note}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <Separator className="my-3" />
@@ -638,6 +700,7 @@ export function RarePage() {
                     idx={idx}
                     customer={selectedCustomer!}
                     showRecipeProfit={showRecipeProfit}
+                    showEasterVisual={rareEasterVisualEnabled}
                     isFavorite={favoriteRecipeKeySet.has(r.recipe.id)}
                     onToggleFavorite={() => {
                       if (!selectedCustomer) return;
@@ -732,11 +795,12 @@ function buildTagDetails(
   return details;
 }
 
-function RareRecipeCard({ r, idx, customer, showRecipeProfit, isFavorite, onToggleFavorite }: {
+function RareRecipeCard({ r, idx, customer, showRecipeProfit, showEasterVisual, isFavorite, onToggleFavorite }: {
   r: IRareRecipeResult;
   idx: number;
   customer: ICustomerRare;
   showRecipeProfit: boolean;
+  showEasterVisual: boolean;
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }) {
@@ -749,7 +813,12 @@ function RareRecipeCard({ r, idx, customer, showRecipeProfit, isFavorite, onTogg
 
   return (
     <div
-      className="relative p-2 rounded-lg border border-border bg-card hover:shadow-sm transition-shadow"
+      className={cn(
+        'relative p-2 rounded-lg bg-card hover:shadow-sm transition-shadow border',
+        showEasterVisual && r.isEasterRecipeHighlight
+          ? 'easter-rainbow-border'
+          : 'border-border',
+      )}
       onMouseEnter={() => setShowTags(true)}
       onMouseLeave={() => setShowTags(false)}
     >
@@ -787,7 +856,13 @@ function RareRecipeCard({ r, idx, customer, showRecipeProfit, isFavorite, onTogg
               const reasonTags = r.extraIngredientReasonTags[i.id] ?? [];
               const reasonText = reasonTags.length > 0 ? `(${reasonTags.join(',')})` : '';
               return (
-                <span key={i.id} className="text-[10px] px-1 py-0 rounded bg-yellow-100 text-yellow-800 border border-yellow-300">
+                <span
+                  key={i.id}
+                  className={cn(
+                    'text-[10px] px-1 py-0 rounded bg-yellow-100 text-yellow-800 border border-yellow-300',
+                    showEasterVisual && r.easterHighlightExtraIngredientIds.includes(i.id) && 'easter-rainbow-chip border-transparent',
+                  )}
+                >
                   +{i.name}{reasonText}
                 </span>
               );

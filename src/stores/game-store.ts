@@ -33,6 +33,7 @@ interface GameState {
   hideUnowned: boolean;
   guideAutoOpenDisabled: boolean;
   showRecipeProfit: boolean;
+  rareEasterVisualEnabled: boolean;
 
   // === 料理过滤 (3-state: all/rare/disabled) ===
   recipeFilter: Record<number, FilterState>;
@@ -90,6 +91,7 @@ interface GameState {
     rareFavoriteRecipesByCustomer?: Record<string, number[]>;
     rareFavoriteBeverages?: Record<string, number[]>;
     showRecipeProfit?: boolean;
+    rareEasterVisualEnabled?: boolean;
   }) => void;
   setPopularFoodTag: (tag: string | null) => void;
   setPopularHateFoodTag: (tag: string | null) => void;
@@ -97,6 +99,7 @@ interface GameState {
   setHideUnowned: (v: boolean) => void;
   setGuideAutoOpenDisabled: (v: boolean) => void;
   setShowRecipeProfit: (v: boolean) => void;
+  setRareEasterVisualEnabled: (v: boolean) => void;
 
   cycleRecipeFilter: (id: number) => void;
   cycleBeverageFilter: (id: number) => void;
@@ -165,6 +168,7 @@ export const useGameStore = create<GameState>()(
       hideUnowned: true,
       guideAutoOpenDisabled: false,
       showRecipeProfit: false,
+      rareEasterVisualEnabled: false,
       recipeFilter: {},
       beverageFilter: {},
       ingredientFilter: {},
@@ -308,6 +312,7 @@ export const useGameStore = create<GameState>()(
         rareFavoriteRecipesByCustomer: data.rareFavoriteRecipesByCustomer ?? {},
         rareFavoriteBeverages: data.rareFavoriteBeverages ?? {},
         showRecipeProfit: data.showRecipeProfit ?? false,
+        rareEasterVisualEnabled: data.rareEasterVisualEnabled ?? false,
         rareHiddenCustomerIds: data.rareHiddenCustomerIds,
         rareExtraCustomerIds: uniqueNumberIds(data.rareExtraCustomerIds ?? []),
         rareCustomerTags: data.rareCustomerTags,
@@ -320,6 +325,7 @@ export const useGameStore = create<GameState>()(
       setHideUnowned: (v) => set({ hideUnowned: v }),
       setGuideAutoOpenDisabled: (v) => set({ guideAutoOpenDisabled: v }),
       setShowRecipeProfit: (v) => set({ showRecipeProfit: v }),
+      setRareEasterVisualEnabled: (v) => set({ rareEasterVisualEnabled: v }),
 
       cycleRecipeFilter: (id) =>
         set((s) => ({

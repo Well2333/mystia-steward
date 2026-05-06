@@ -126,6 +126,12 @@ export interface IRareRecipeResult {
   extraIngredients: IIngredient[];
   // 记录每个加料被选中的用途标签（例如 { 12: ['甜', '果味'] }）
   extraIngredientReasonTags: Record<number, string[]>;
+  isEasterPriority: boolean;
+  isEasterPinned: boolean;
+  isEasterRecipeHighlight: boolean;
+  easterHighlightExtraIngredientIds: number[];
+  easterReason: string | null;
+  easterScoreFloor: number | null;
   allTags: string[];
   cancelledTags: string[];
   foodScore: number;

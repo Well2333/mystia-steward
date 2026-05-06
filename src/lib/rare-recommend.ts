@@ -33,9 +33,87 @@ const ingredientsById = new Map(
   (allIngredients as IIngredient[]).map((i) => [i.id, i]),
 );
 
-// 特殊规则：古明地恋点单时，无意识妖怪慕斯强制判定为极差。
-const KOISHI_CUSTOMER_ID = 2006;
-const KOISHI_FORCED_EXBAD_RECIPE_ID = 70;
+type RareEasterEffect = 'priority-exgood' | 'ban';
+
+interface RareEasterRule {
+  customerIds: number[];
+  recipeIds?: number[];
+  ingredientIds?: number[];
+  effect: RareEasterEffect;
+  reason: string;
+  scoreFloor?: number;
+  pinOnQualified?: boolean;
+  recipeHighlight?: boolean;
+}
+
+interface ResolvedRareEasterEffect {
+  effect: RareEasterEffect | null;
+  reason: string | null;
+  scoreFloor: number | null;
+  pinOnQualified: boolean;
+  recipeHighlight: boolean;
+  ingredientHighlightIds: number[];
+}
+
+const EMPTY_EASTER_EFFECT: ResolvedRareEasterEffect = {
+  effect: null,
+  reason: null,
+  scoreFloor: null,
+  pinOnQualified: false,
+  recipeHighlight: false,
+  ingredientHighlightIds: [],
+};
+
+const RARE_EASTER_RULES: RareEasterRule[] = [
+  {
+    customerIds: [4008], // 蕾米莉亚
+    recipeIds: [69], // 猩红恶魔蛋糕
+    effect: 'priority-exgood',
+    reason: '蕾米莉亚 × 猩红恶魔蛋糕（彩蛋）',
+    scoreFloor: 4,
+  },
+  {
+    customerIds: [1003], // 饕餮尤魔
+    recipeIds: [35], // 油豆腐
+    effect: 'priority-exgood',
+    reason: '饕餮尤魔 × 油豆腐（彩蛋）',
+    scoreFloor: 3,
+  },
+  {
+    customerIds: [10], // 雾雨魔理沙
+    recipeIds: [5002], // 牛肉鸳鸯火锅
+    effect: 'priority-exgood',
+    reason: '雾雨魔理沙 × 牛肉鸳鸯火锅（彩蛋）',
+    scoreFloor: 4,
+  },
+  {
+    customerIds: [1000], // 河城荷取
+    ingredientIds: [1000], // 黄瓜
+    effect: 'priority-exgood',
+    reason: '河城荷取 × 黄瓜（彩蛋）',
+    scoreFloor: 3,
+    pinOnQualified: false,
+    recipeHighlight: false,
+  },
+  {
+    customerIds: [2006], // 古明地恋
+    recipeIds: [70], // 无意识妖怪慕斯
+    effect: 'ban',
+    reason: '古明地恋 × 无意识妖怪慕斯（禁推）',
+  },
+  {
+    customerIds: [5001, 5002], // 绵月丰姬/绵月依姬
+    recipeIds: [4001], // 蜜桃红烧肉
+    effect: 'ban',
+    reason: '绵月丰姬/绵月依姬 × 蜜桃红烧肉（禁推）',
+  },
+  {
+    customerIds: [1001], // 犬走椛
+    ingredientIds: [5000], // 可可豆
+    effect: 'ban',
+    reason: '犬走椛 × 可可豆（禁推）',
+  },
+];
 
 /** 获取指定地区的稀客 */
 export function getRareCustomersByPlace(place: TPlace): ICustomerRare[] {
@@ -129,6 +207,132 @@ function buildExtraIngredientTagReasons(
   };
 }
 
+function isReasonDataPreferred(
+  nextReason: IngredientTagReasonResult,
+  prevReason: IngredientTagReasonResult | null,
+  nextCost: number,
+  prevCost: number,
+): boolean {
+  if (!prevReason) return true;
+  if (nextReason.assignedBaseReuseScore !== prevReason.assignedBaseReuseScore) {
+    return nextReason.assignedBaseReuseScore > prevReason.assignedBaseReuseScore;
+  }
+  if (nextReason.assignedQtyScore !== prevReason.assignedQtyScore) {
+    return nextReason.assignedQtyScore > prevReason.assignedQtyScore;
+  }
+  if (nextReason.assignedPriceScore !== prevReason.assignedPriceScore) {
+    return nextReason.assignedPriceScore < prevReason.assignedPriceScore;
+  }
+  return nextCost < prevCost;
+}
+
+function resolveRareEasterEffect(
+  customerId: number,
+  recipeId: number,
+  ingredientIds: Set<number>,
+): ResolvedRareEasterEffect {
+  let priorityReason: string | null = null;
+  let priorityScoreFloor: number | null = null;
+  let priorityPinOnQualified = false;
+  let priorityRecipeHighlight = false;
+  const ingredientHighlightIds = new Set<number>();
+
+  for (const rule of RARE_EASTER_RULES) {
+    if (!rule.customerIds.includes(customerId)) continue;
+    if (rule.recipeIds && !rule.recipeIds.includes(recipeId)) continue;
+    if (rule.ingredientIds && !rule.ingredientIds.every((id) => ingredientIds.has(id))) continue;
+
+    if (rule.effect === 'ban') {
+      return {
+        effect: 'ban',
+        reason: rule.reason,
+        scoreFloor: null,
+        pinOnQualified: false,
+        recipeHighlight: false,
+        ingredientHighlightIds: [],
+      };
+    }
+    if (!priorityReason) {
+      priorityReason = rule.reason;
+    }
+    if (rule.scoreFloor !== undefined) {
+      priorityScoreFloor = Math.max(priorityScoreFloor ?? Number.NEGATIVE_INFINITY, rule.scoreFloor);
+    }
+    priorityPinOnQualified = priorityPinOnQualified || rule.pinOnQualified !== false;
+    priorityRecipeHighlight = priorityRecipeHighlight || rule.recipeHighlight !== false;
+    if (rule.ingredientIds) {
+      for (const id of rule.ingredientIds) ingredientHighlightIds.add(id);
+    }
+  }
+
+  if (priorityReason) {
+    return {
+      effect: 'priority-exgood',
+      reason: priorityReason,
+      scoreFloor: priorityScoreFloor ?? null,
+      pinOnQualified: priorityPinOnQualified,
+      recipeHighlight: priorityRecipeHighlight,
+      ingredientHighlightIds: [...ingredientHighlightIds],
+    };
+  }
+
+  return EMPTY_EASTER_EFFECT;
+}
+
+function getEasterIngredientIdsByEffect(customerId: number, effect: RareEasterEffect): Set<number> {
+  const ids = new Set<number>();
+  for (const rule of RARE_EASTER_RULES) {
+    if (rule.effect !== effect) continue;
+    if (!rule.customerIds.includes(customerId)) continue;
+    if (!rule.ingredientIds) continue;
+    for (const id of rule.ingredientIds) ids.add(id);
+  }
+  return ids;
+}
+
+function resolveFinalFoodTags(
+  recipe: IRecipe,
+  extraIngredients: IIngredient[],
+  popularFoodTag: string | null,
+  popularHateFoodTag: string | null,
+  isFamousShop: boolean,
+): { activeTags: string[]; cancelledTags: string[] } {
+  const totalIngCount = recipe.ingredients.length + extraIngredients.length;
+  const baseTags = new Set(recipe.positiveTags);
+  for (const ingredient of extraIngredients) {
+    for (const tag of ingredient.tags) baseTags.add(tag);
+  }
+
+  // 先计算静态/明星店动态标签与互斥，再根据互斥后的有效标签计算流行趋势标签。
+  const dynamicTags = getDynamicTags(
+    recipe.price,
+    totalIngCount,
+    null,
+    null,
+    [...baseTags],
+    isFamousShop,
+  );
+  const allTags = mergeAllTags(
+    recipe.positiveTags,
+    extraIngredients.map((i) => i.tags),
+    dynamicTags,
+  );
+  const { activeTags, cancelledTags } = resolveTagConflicts(allTags);
+
+  const finalTagSet = new Set(activeTags);
+  if (popularFoodTag && activeTags.includes(popularFoodTag)) {
+    finalTagSet.add('流行喜爱');
+  }
+  if (popularHateFoodTag && activeTags.includes(popularHateFoodTag)) {
+    finalTagSet.add('流行厌恶');
+  }
+
+  return {
+    activeTags: [...finalTagSet],
+    cancelledTags,
+  };
+}
+
 /** 评估一组额外食材的食物得分与是否满足点单 */
 function evaluateCombo(
   recipe: IRecipe,
@@ -139,25 +343,13 @@ function evaluateCombo(
   popularHateFoodTag: string | null,
   isFamousShop: boolean,
 ): { foodScore: number; meetsRequiredFood: boolean; activeTags: string[]; cancelledTags: string[] } {
-  const totalIngCount = recipe.ingredients.length + extraIngredients.length;
-  const baseTags = new Set(recipe.positiveTags);
-  for (const ing of extraIngredients) {
-    for (const t of ing.tags) baseTags.add(t);
-  }
-  const dynamicTags = getDynamicTags(
-    recipe.price,
-    totalIngCount,
+  const { activeTags, cancelledTags } = resolveFinalFoodTags(
+    recipe,
+    extraIngredients,
     popularFoodTag,
     popularHateFoodTag,
-    [...baseTags],
     isFamousShop,
   );
-  const allTags = mergeAllTags(
-    recipe.positiveTags,
-    extraIngredients.map((i) => i.tags),
-    dynamicTags,
-  );
-  const { activeTags, cancelledTags } = resolveTagConflicts(allTags);
   const foodScore = scoreFoodForRare(activeTags, customer.positiveTags, customer.negativeTags);
   const meetsRequiredFood = activeTags.includes(requiredFoodTag);
   return { foodScore, meetsRequiredFood, activeTags, cancelledTags };
@@ -197,12 +389,12 @@ export function rankRecipesForRare(
 
   // 预计算客人喜好tag集合（用于筛选候选食材）
   const customerPreferredTagSet = new Set(customer.positiveTags);
+  const customerBannedIngredientIds = getEasterIngredientIdsByEffect(customer.id, 'ban');
+  const customerPriorityIngredientIds = getEasterIngredientIdsByEffect(customer.id, 'priority-exgood');
   const MAX_CANDIDATES = 18;
 
   for (const recipe of allRecipes as IRecipe[]) {
     if (!availableRecipeIds.has(recipe.id)) continue;
-    const isKoishiForcedExBad =
-      customer.id === KOISHI_CUSTOMER_ID && recipe.id === KOISHI_FORCED_EXBAD_RECIPE_ID;
 
     // 基础食材可用性检查：必须在可用食材列表中，且未被禁用
     const hasUnavailableBaseIngredient = recipe.ingredients.some((name) => {
@@ -213,23 +405,29 @@ export function rankRecipesForRare(
     });
     if (hasUnavailableBaseIngredient) continue;
 
+    const baseIngredientIdSet = new Set<number>();
+    for (const name of recipe.ingredients) {
+      const ing = ingredientsByName.get(name);
+      if (ing) baseIngredientIdSet.add(ing.id);
+    }
+
+    const baseEasterEffect = resolveRareEasterEffect(customer.id, recipe.id, baseIngredientIdSet);
+    if (baseEasterEffect.effect === 'ban') continue;
+
     const recipeExtraSlots = 5 - recipe.ingredients.length;
     const extraSlots = Math.max(0, Math.min(recipeExtraSlots, maxExtraIngredients));
 
-    const baseDynamicTags = getDynamicTags(
-      recipe.price,
-      recipe.ingredients.length,
+    const { activeTags: baseActiveTags } = resolveFinalFoodTags(
+      recipe,
+      [],
       popularFoodTag,
       popularHateFoodTag,
-      recipe.positiveTags,
       isFamousShop,
     );
-    const baseAllTags = mergeAllTags(recipe.positiveTags, [], baseDynamicTags);
-    const { activeTags: baseActiveTags } = resolveTagConflicts(baseAllTags);
 
     // 筛选此料理可用的候选食材
     const allCandidates = usableIngredients.filter(
-      (ing) => !hasForbiddenTag(ing.tags, recipe.negativeTags),
+      (ing) => !hasForbiddenTag(ing.tags, recipe.negativeTags) && !customerBannedIngredientIds.has(ing.id),
     );
 
     // === 性能优化：仅保留相关候选并限制数量 ===
@@ -244,7 +442,8 @@ export function rankRecipesForRare(
         c.tags,
         customer.negativeTags,
       );
-      if (matchesPreferredOrRequired || canCancelNegative) {
+      const forcePriorityCandidate = customerPriorityIngredientIds.has(c.id);
+      if (matchesPreferredOrRequired || canCancelNegative || forcePriorityCandidate) {
         relevant.push(c);
       }
     }
@@ -293,6 +492,8 @@ export function rankRecipesForRare(
       assignedQtyScore: 0,
       assignedPriceScore: 0,
     };
+    let bestEasterEffect =
+      baseEasterEffect.effect === 'priority-exgood' ? baseEasterEffect : EMPTY_EASTER_EFFECT;
 
     // 先评估不加料的情况
     const baseEval = bestEval;
@@ -345,6 +546,13 @@ export function rankRecipesForRare(
         let bestEvalForK: ReturnType<typeof evaluateCombo> | null = null;
         let bestReasonForK: IngredientTagReasonResult | null = null;
         let bestCostForK = Infinity;
+        let bestPriorityComboForK: IIngredient[] | null = null;
+        let bestPriorityEvalForK: ReturnType<typeof evaluateCombo> | null = null;
+        let bestPriorityReasonForK: IngredientTagReasonResult | null = null;
+        let bestPriorityCostForK = Infinity;
+        let bestPriorityEasterReasonForK: string | null = null;
+        let bestPriorityEasterScoreFloorForK: number | null = null;
+        let bestPriorityEasterEffectForK: ResolvedRareEasterEffect | null = null;
         const indices = Array.from({ length: k }, (_, i) => i);
         while (true) {
           const combo = indices.map((i) => candidates[i]);
@@ -368,43 +576,55 @@ export function rankRecipesForRare(
             ownedIngredientQty,
           );
 
-          if (
-            shouldReplaceFallback(
-              bestFallbackEval,
-              bestFallbackCombo,
-              bestFallbackReasonData,
-              bestFallbackCost,
-              ev,
-              combo,
-              reasonData,
-              cost,
-            )
-          ) {
-            bestFallbackCombo = combo;
-            bestFallbackEval = ev;
-            bestFallbackReasonData = reasonData;
-            bestFallbackCost = cost;
-          }
+          const comboIngredientIds = new Set(baseIngredientIdSet);
+          for (const ingredient of combo) comboIngredientIds.add(ingredient.id);
+          const comboEasterEffect = resolveRareEasterEffect(customer.id, recipe.id, comboIngredientIds);
 
-          if (ev.foodScore >= minFoodScore && ev.meetsRequiredFood) {
-            const shouldReplace =
-              bestComboForK === null ||
-              reasonData.assignedBaseReuseScore > (bestReasonForK?.assignedBaseReuseScore ?? -1) ||
-              (reasonData.assignedBaseReuseScore === (bestReasonForK?.assignedBaseReuseScore ?? -1) &&
-                reasonData.assignedQtyScore > (bestReasonForK?.assignedQtyScore ?? -1)) ||
-              (reasonData.assignedBaseReuseScore === (bestReasonForK?.assignedBaseReuseScore ?? -1) &&
-                reasonData.assignedQtyScore === (bestReasonForK?.assignedQtyScore ?? -1) &&
-                reasonData.assignedPriceScore < (bestReasonForK?.assignedPriceScore ?? Infinity)) ||
-              (reasonData.assignedBaseReuseScore === (bestReasonForK?.assignedBaseReuseScore ?? -1) &&
-                reasonData.assignedQtyScore === (bestReasonForK?.assignedQtyScore ?? -1) &&
-                reasonData.assignedPriceScore === (bestReasonForK?.assignedPriceScore ?? Infinity) &&
-                cost < bestCostForK);
+          if (comboEasterEffect.effect !== 'ban') {
+            if (
+              shouldReplaceFallback(
+                bestFallbackEval,
+                bestFallbackCombo,
+                bestFallbackReasonData,
+                bestFallbackCost,
+                ev,
+                combo,
+                reasonData,
+                cost,
+              )
+            ) {
+              bestFallbackCombo = combo;
+              bestFallbackEval = ev;
+              bestFallbackReasonData = reasonData;
+              bestFallbackCost = cost;
+            }
 
-            if (shouldReplace) {
-              bestComboForK = combo;
-              bestEvalForK = ev;
-              bestReasonForK = reasonData;
-              bestCostForK = cost;
+            if (comboEasterEffect.effect === 'priority-exgood') {
+              const shouldReplacePriority =
+                bestPriorityComboForK === null ||
+                isReasonDataPreferred(reasonData, bestPriorityReasonForK, cost, bestPriorityCostForK);
+              if (shouldReplacePriority) {
+                bestPriorityComboForK = combo;
+                bestPriorityEvalForK = ev;
+                bestPriorityReasonForK = reasonData;
+                bestPriorityCostForK = cost;
+                bestPriorityEasterReasonForK = comboEasterEffect.reason;
+                bestPriorityEasterScoreFloorForK = comboEasterEffect.scoreFloor;
+                bestPriorityEasterEffectForK = comboEasterEffect;
+              }
+            }
+
+            if (ev.foodScore >= minFoodScore && ev.meetsRequiredFood) {
+              const shouldReplace =
+                bestComboForK === null ||
+                isReasonDataPreferred(reasonData, bestReasonForK, cost, bestCostForK);
+
+              if (shouldReplace) {
+                bestComboForK = combo;
+                bestEvalForK = ev;
+                bestReasonForK = reasonData;
+                bestCostForK = cost;
+              }
             }
           }
 
@@ -414,6 +634,26 @@ export function rankRecipesForRare(
           if (i < 0) break;
           indices[i]++;
           for (let j = i + 1; j < k; j++) indices[j] = indices[j - 1] + 1;
+        }
+
+        if (
+          bestPriorityComboForK !== null &&
+          bestPriorityEvalForK &&
+          bestPriorityReasonForK &&
+          bestPriorityEasterReasonForK
+        ) {
+          bestCombo = bestPriorityComboForK;
+          bestEval = bestPriorityEvalForK;
+          bestReasonData = bestPriorityReasonForK;
+          bestEasterEffect = {
+            effect: 'priority-exgood',
+            reason: bestPriorityEasterReasonForK,
+            scoreFloor: bestPriorityEasterScoreFloorForK,
+            pinOnQualified: bestPriorityEasterEffectForK?.pinOnQualified ?? false,
+            recipeHighlight: bestPriorityEasterEffectForK?.recipeHighlight ?? false,
+            ingredientHighlightIds: bestPriorityEasterEffectForK?.ingredientHighlightIds ?? [],
+          };
+          break outer;
         }
 
         if (bestComboForK !== null && bestEvalForK && bestReasonForK) {
@@ -440,14 +680,17 @@ export function rankRecipesForRare(
       : {};
 
     let finalFoodScore = finalEval.foodScore;
-    let finalMeetsRequiredFood = finalEval.meetsRequiredFood;
+    const finalMeetsRequiredFood = finalEval.meetsRequiredFood;
     let rating = getRating(finalFoodScore, ASSUMED_BEV_SCORE, finalMeetsRequiredFood, ASSUMED_BEV_MEETS);
 
-    if (isKoishiForcedExBad) {
-      finalFoodScore = 0;
-      finalMeetsRequiredFood = false;
-      rating = 'ExBad';
+    if (bestEasterEffect.effect === 'priority-exgood') {
+      finalFoodScore = Math.max(finalFoodScore, bestEasterEffect.scoreFloor ?? finalFoodScore);
+      rating = getRating(finalFoodScore, ASSUMED_BEV_SCORE, finalMeetsRequiredFood, ASSUMED_BEV_MEETS);
     }
+
+    const easterHighlightExtraIngredientIds = selectedIngredients
+      .filter((ingredient) => bestEasterEffect.ingredientHighlightIds.includes(ingredient.id))
+      .map((ingredient) => ingredient.id);
 
     const baseCost = recipe.ingredients.reduce((sum, name) => {
       const ing = ingredientsByName.get(name);
@@ -459,6 +702,13 @@ export function rankRecipesForRare(
       recipe,
       extraIngredients: selectedIngredients,
       extraIngredientReasonTags,
+      isEasterPriority: bestEasterEffect.effect === 'priority-exgood',
+      isEasterPinned: bestEasterEffect.effect === 'priority-exgood' && bestEasterEffect.pinOnQualified,
+      isEasterRecipeHighlight:
+        bestEasterEffect.effect === 'priority-exgood' && bestEasterEffect.recipeHighlight,
+      easterHighlightExtraIngredientIds,
+      easterReason: bestEasterEffect.reason,
+      easterScoreFloor: bestEasterEffect.scoreFloor,
       allTags: finalEval.activeTags,
       cancelledTags: finalEval.cancelledTags,
       foodScore: finalFoodScore,

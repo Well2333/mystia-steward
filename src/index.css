@@ -129,3 +129,43 @@
     @apply font-sans;
   }
 }
+
+@keyframes easter-rainbow-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 240% 50%;
+  }
+}
+
+.easter-rainbow-border {
+  border-color: transparent;
+}
+
+.easter-rainbow-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(90deg, #ef4444, #f97316, #eab308, #22c55e, #06b6d4, #3b82f6, #8b5cf6, #ec4899, #ef4444);
+  background-size: 240% 100%;
+  animation: easter-rainbow-shift 2.2s linear infinite;
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.easter-rainbow-chip {
+  border-color: transparent;
+  background-image:
+    linear-gradient(#fef9c3, #fef9c3),
+    linear-gradient(90deg, #ef4444, #f97316, #eab308, #22c55e, #06b6d4, #3b82f6, #8b5cf6, #ec4899, #ef4444);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  background-size: 100% 100%, 240% 100%;
+  animation: easter-rainbow-shift 2.6s linear infinite;
+}
