@@ -36,10 +36,10 @@ const RATING_COLORS: Record<TRating, string> = {
 };
 
 const RATING_LABELS: Record<TRating, string> = {
-  ExGood: '极佳',
-  Good: '佳',
+  ExGood: '完美',
+  Good: '满意',
   Normal: '普通',
-  Bad: '差',
+  Bad: '不满',
   ExBad: '极差',
 };
 const EMPTY_BEVERAGES: ReturnType<typeof rankBeveragesForRare> = [];
@@ -185,7 +185,7 @@ export function RarePage() {
   const setFoodTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, tag, requiredBevTag); };
   const setBevTag = (tag: string) => { if (selectedCustomerId != null) setRareCustomerTag(selectedCustomerId, normalizedRequiredFoodTag, tag); };
   const recipeFilterOption = useMemo(() => {
-    if (rareRecipeFilterMode === 'exgood') return '非极佳';
+    if (rareRecipeFilterMode === 'exgood') return '非完美';
     if (rareHideBelowScore >= 3) return '低于3分';
     if (rareHideBelowScore === 2) return '低于2分';
     if (rareHideBelowScore === 1) return '低于1分';
@@ -194,7 +194,7 @@ export function RarePage() {
 
   const handleRecipeFilterOptionChange = (value: string | null) => {
     if (!value) return;
-    if (value === '非极佳') {
+    if (value === '非完美') {
       setRareRecipeFilterMode('exgood');
       return;
     }
@@ -652,7 +652,7 @@ export function RarePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="非极佳">非极佳</SelectItem>
+                    <SelectItem value="非完美">非完美</SelectItem>
                     <SelectItem value="低于3分">低于3分</SelectItem>
                     <SelectItem value="低于2分">低于2分</SelectItem>
                     <SelectItem value="低于1分">低于1分</SelectItem>
