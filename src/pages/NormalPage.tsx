@@ -19,6 +19,8 @@ type SortMode = 'coverage' | 'price';
 type BevSortMode = 'coverage' | 'price';
 type ViewTab = 'recipes' | 'beverages';
 
+const COOKER_FILTER_ALL = '全部';
+
 export function NormalPage() {
   const store = useGameStore();
   const place = store.normalSelectedPlace;
@@ -26,6 +28,7 @@ export function NormalPage() {
   const [sortMode, setSortMode] = useState<SortMode>('coverage');
   const [bevSortMode, setBevSortMode] = useState<BevSortMode>('coverage');
   const [viewTab, setViewTab] = useState<ViewTab>('recipes');
+  const [recipeCookerFilter, setRecipeCookerFilter] = useState(COOKER_FILTER_ALL);
 
   const customers = useMemo(
     () => (place ? getNormalCustomersByPlace(place) : []),
@@ -58,8 +61,38 @@ export function NormalPage() {
     return computeNormalBeverageResults(place, new Set(normalBevIds));
   }, [place, normalBevIds]);
 
+  const recipeCookerStats = useMemo(() => {
+    const counts = new Map<string, number>();
+    const orderedCookers: string[] = [];
+
+    for (const result of rawRecipeResults) {
+      const cooker = result.recipe.cooker?.trim() || '未知厨具';
+      if (!counts.has(cooker)) {
+        counts.set(cooker, 1);
+        orderedCookers.push(cooker);
+        continue;
+      }
+      counts.set(cooker, (counts.get(cooker) ?? 0) + 1);
+    }
+
+    return { counts, orderedCookers };
+  }, [rawRecipeResults]);
+
+  const effectiveRecipeCookerFilter =
+    recipeCookerFilter === COOKER_FILTER_ALL
+    || recipeCookerStats.orderedCookers.includes(recipeCookerFilter)
+      ? recipeCookerFilter
+      : COOKER_FILTER_ALL;
+
   const recipeResults = useMemo(() => {
-    const sorted = [...rawRecipeResults];
+    const filteredByCooker = effectiveRecipeCookerFilter === COOKER_FILTER_ALL
+      ? rawRecipeResults
+      : rawRecipeResults.filter((item) => {
+        const cooker = item.recipe.cooker?.trim() || '未知厨具';
+        return cooker === effectiveRecipeCookerFilter;
+      });
+
+    const sorted = [...filteredByCooker];
     sorted.sort((a, b) => {
       if (sortMode === 'price') {
         if (b.recipe.price !== a.recipe.price) return b.recipe.price - a.recipe.price;
@@ -69,7 +102,7 @@ export function NormalPage() {
       return b.recipe.price - a.recipe.price;
     });
     return sorted;
-  }, [rawRecipeResults, sortMode]);
+  }, [effectiveRecipeCookerFilter, rawRecipeResults, sortMode]);
 
   const beverageResults = useMemo(() => {
     const sorted = [...rawBevResults];
@@ -124,10 +157,37 @@ export function NormalPage() {
               )}
             </div>
 
+            {viewTab === 'recipes' && (
+              <div className="flex gap-1 flex-wrap">
+                <Button
+                  size="sm"
+                  variant={effectiveRecipeCookerFilter === COOKER_FILTER_ALL ? 'default' : 'outline'}
+                  onClick={() => setRecipeCookerFilter(COOKER_FILTER_ALL)}
+                  className="text-xs h-7 rounded-full"
+                >
+                  全部 ({rawRecipeResults.length})
+                </Button>
+                {recipeCookerStats.orderedCookers.map((cooker) => (
+                  <Button
+                    key={cooker}
+                    size="sm"
+                    variant={effectiveRecipeCookerFilter === cooker ? 'default' : 'outline'}
+                    onClick={() => setRecipeCookerFilter(cooker)}
+                    className="text-xs h-7 rounded-full"
+                  >
+                    {cooker} ({recipeCookerStats.counts.get(cooker) ?? 0})
+                  </Button>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-2">
                 {viewTab === 'recipes' && recipeResults.map((r, idx) => (
                   <RecipeCard key={r.recipe.id} r={r} idx={idx} showRecipeProfit={showRecipeProfit} />
                 ))}
+                {viewTab === 'recipes' && recipeResults.length === 0 && (
+                  <div className="py-8 text-center text-sm text-muted-foreground">当前厨具下没有可推荐料理</div>
+                )}
                 {viewTab === 'beverages' && beverageResults.map((b, idx) => (
                   <BeverageCard key={b.beverage.id} b={b} idx={idx} />
                 ))}
