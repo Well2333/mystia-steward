@@ -169,3 +169,130 @@
   background-size: 100% 100%, 240% 100%;
   animation: easter-rainbow-shift 2.6s linear infinite;
 }
+
+.mystia-guide-popover {
+  border: 1px solid color-mix(in oklab, var(--border) 88%, white 12%);
+  border-radius: 20px;
+  background: color-mix(in oklab, var(--popover) 92%, white 8%);
+  color: var(--popover-foreground);
+  box-shadow: 0 24px 80px rgba(61, 46, 31, 0.24);
+}
+
+.driver-active,
+.driver-active #root,
+.driver-active #root *,
+.driver-active [data-base-ui-portal] > div[data-open],
+.driver-active [data-base-ui-portal] > div[data-open] *,
+.driver-active [data-base-ui-portal] [data-slot="select-content"],
+.driver-active [data-base-ui-portal] [data-slot="select-content"] *,
+.driver-active [data-base-ui-portal] [role="listbox"],
+.driver-active [data-base-ui-portal] [role="listbox"] *,
+.driver-active [data-base-ui-portal] [role="option"],
+.driver-active [data-base-ui-portal] [role="option"] * {
+  pointer-events: auto !important;
+}
+
+.driver-overlay,
+.driver-overlay *,
+.driver-overlay path {
+  pointer-events: none !important;
+}
+
+.mystia-guide-popover .driver-popover-title {
+  color: var(--foreground);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.mystia-guide-popover .driver-popover-description {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+
+.mystia-guide-copy {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mystia-guide-copy p {
+  margin: 0;
+}
+
+.mystia-guide-progress {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--secondary) 88%, white 12%);
+  color: var(--secondary-foreground);
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.mystia-guide-popover .driver-popover-footer {
+  margin-top: 1rem;
+  border-top: 1px solid color-mix(in oklab, var(--border) 78%, white 22%);
+  padding-top: 0.9rem;
+}
+
+.mystia-guide-popover .driver-popover-footer .driver-popover-navigation-btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.mystia-guide-button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+  min-height: 2rem;
+  padding: 0.55rem 0.95rem;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.mystia-guide-button:hover {
+  transform: translateY(-1px);
+}
+
+.mystia-guide-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
+.mystia-guide-button-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.mystia-guide-button-primary:hover {
+  background: color-mix(in oklab, var(--primary) 88%, black 12%);
+}
+
+.mystia-guide-button-secondary {
+  border-color: var(--border);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.mystia-guide-button-secondary:hover {
+  background: var(--muted);
+}
+
+.mystia-guide-button-ghost {
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.mystia-guide-button-ghost:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}

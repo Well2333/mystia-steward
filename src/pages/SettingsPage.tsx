@@ -105,65 +105,88 @@ export function SettingsPage() {
   const ownedRecipeSet = new Set(store.ownedRecipeIds);
   const ownedBevSet = new Set(store.ownedBeverageIds);
   const ownedIngredientSet = new Set(store.ownedIngredientIds);
+  const showImportRequirement = store.guideDataSource === 'none';
+  const showTemporaryGuideDataNotice = store.guideDataSource === 'temporary';
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">设置</h1>
 
+      {showImportRequirement && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-medium">继续使用推荐前，请先导入一个存档或配置。</p>
+          <p className="mt-1 text-xs text-amber-900">
+            交互式引导会在设置页卡住，直到你完成导入；如果当前设备确实拿不到文件，可在引导第 6 步选择临时假存档继续演示。
+          </p>
+        </div>
+      )}
+
+      {showTemporaryGuideDataNotice && (
+        <div className="rounded-xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-medium">当前使用的是引导临时假存档。</p>
+          <p className="mt-1 text-xs text-amber-900">
+            已开放全部食谱、全部酒水和全部食材，食材库存按 100 份填充。建议尽快导入真实存档或配置覆盖这份临时数据。
+          </p>
+        </div>
+      )}
+
       {/* 存档导入 */}
-      <Card>
-        <CardHeader><CardTitle>存档导入</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2 p-3 bg-secondary/60 rounded-lg">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground mb-1">
-                {os === 'windows' ? 'Windows' : os === 'mac' ? 'macOS' : 'Linux'} 存档路径:
-              </p>
-              <code className="text-xs bg-background px-2 py-1 rounded border block truncate select-all">{savePath}</code>
+      <div data-guide="settings-save-import">
+        <Card>
+          <CardHeader><CardTitle>存档导入</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-2 p-3 bg-secondary/60 rounded-lg">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground mb-1">
+                  {os === 'windows' ? 'Windows' : os === 'mac' ? 'macOS' : 'Linux'} 存档路径:
+                </p>
+                <code className="text-xs bg-background px-2 py-1 rounded border block truncate select-all">{savePath}</code>
+              </div>
+              <Button size="sm" variant="outline" onClick={copyPath} className="shrink-0">
+                {copied ? '已复制' : '复制路径'}
+              </Button>
             </div>
-            <Button size="sm" variant="outline" onClick={copyPath} className="shrink-0">
-              {copied ? '已复制' : '复制路径'}
-            </Button>
-          </div>
-          <div
-            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-            onDragLeave={() => setIsDragOver(false)}
-            onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${isDragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
-          >
-            <p className="text-sm text-muted-foreground mb-2">拖拽 Mystia#x.memory 到此处，或点击下方按钮选择</p>
-            <label className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium cursor-pointer hover:bg-accent transition-colors">
-              <Input type="file" accept=".memory" onChange={handleImport} className="hidden" />
-              选择存档文件
-            </label>
-          </div>
-          {importStatus && (
-            <p className={`text-sm font-medium ${importStatus.includes('成功') ? 'text-green-600' : 'text-destructive'}`}>{importStatus}</p>
-          )}
-        </CardContent>
-      </Card>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${isDragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
+            >
+              <p className="text-sm text-muted-foreground mb-2">拖拽 Mystia#x.memory 到此处，或点击下方按钮选择</p>
+              <label className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium cursor-pointer hover:bg-accent transition-colors">
+                <Input type="file" accept=".memory" onChange={handleImport} className="hidden" />
+                选择存档文件
+              </label>
+            </div>
+            {importStatus && (
+              <p className={`text-sm font-medium ${importStatus.includes('成功') ? 'text-green-600' : 'text-destructive'}`}>{importStatus}</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* 配置导入/导出 */}
-      <Card>
-        <CardHeader><CardTitle>配置导入 / 导出</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">导出当前全部配置（过滤状态、持有数据、稀客设置等），可通过剪贴板或文件在不同设备间传输。</p>
+      <div data-guide="settings-config-import">
+        <Card>
+          <CardHeader><CardTitle>配置导入 / 导出</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">导出当前全部配置（过滤状态、持有数据、稀客设置等），可通过剪贴板或文件在不同设备间传输。</p>
 
-          <div className="flex gap-2 flex-wrap">
-            <Button size="sm" variant="outline" onClick={() => {
-              const str = exportConfig(store);
-              navigator.clipboard.writeText(str).then(() => {
-                setConfigStatus('已复制到剪贴板');
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={() => {
+                const str = exportConfig(store);
+                navigator.clipboard.writeText(str).then(() => {
+                  setConfigStatus('已复制到剪贴板');
+                  setTimeout(() => setConfigStatus(null), 3000);
+                });
+              }}>导出到剪贴板</Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                const str = exportConfig(store);
+                downloadConfigFile(str);
+                setConfigStatus('已下载配置文件');
                 setTimeout(() => setConfigStatus(null), 3000);
-              });
-            }}>导出到剪贴板</Button>
-            <Button size="sm" variant="outline" onClick={() => {
-              const str = exportConfig(store);
-              downloadConfigFile(str);
-              setConfigStatus('已下载配置文件');
-              setTimeout(() => setConfigStatus(null), 3000);
-            }}>导出为文件</Button>
-          </div>
+              }}>导出为文件</Button>
+            </div>
 
           <div className="flex gap-2 items-end flex-wrap">
             <div className="flex-1 min-w-[200px]">
@@ -199,16 +222,18 @@ export function SettingsPage() {
             }}>从文件导入</Button>
           </div>
 
-          {configStatus && (
-            <p className={`text-sm font-medium ${configStatus.includes('成功') || configStatus.includes('已') ? 'text-green-600' : 'text-destructive'}`}>{configStatus}</p>
-          )}
-        </CardContent>
-      </Card>
+            {configStatus && (
+              <p className={`text-sm font-medium ${configStatus.includes('成功') || configStatus.includes('已') ? 'text-green-600' : 'text-destructive'}`}>{configStatus}</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* 流行标签 */}
-      <Card>
-        <CardHeader><CardTitle>流行料理标签</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
+      <div data-guide="settings-trend">
+        <Card>
+          <CardHeader><CardTitle>流行料理标签</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex items-center gap-3">
               <Label className="shrink-0 w-16">喜爱:</Label>
@@ -243,9 +268,10 @@ export function SettingsPage() {
               checked={store.famousShopEnabled}
               onCheckedChange={store.setFamousShopEnabled}
             />
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* 显示选项 */}
       <Card>
@@ -286,28 +312,29 @@ export function SettingsPage() {
       </Card>
 
       {/* 料理/酒水过滤 */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle>料理与酒水过滤</CardTitle>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Switch checked={editOwnership} onCheckedChange={setEditOwnership} />
-                <Label className="text-sm">调整取得状态</Label>
+      <div data-guide="settings-ownership">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle>料理与酒水过滤</CardTitle>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Switch checked={editOwnership} onCheckedChange={setEditOwnership} />
+                  <Label className="text-sm">调整取得状态</Label>
+                </div>
+                <Input placeholder="搜索..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-36 h-8" />
               </div>
-              <Input placeholder="搜索..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-36 h-8" />
             </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {editOwnership
-              ? '点击项目可在「已取得」和「未取得」之间切换'
-              : <>已取得的项目点击切换: {Object.entries(FILTER_LABELS).map(([k, v]) => (
-                  <span key={k} className={`mx-0.5 px-2 py-0.5 rounded-full ${v.color}`}>{v.text}</span>
-                ))}，未取得强制禁用</>
-            }
-          </p>
-        </CardHeader>
-        <CardContent>
+            <p className="text-xs text-muted-foreground mt-2">
+              {editOwnership
+                ? '点击项目可在「已取得」和「未取得」之间切换'
+                : <>已取得的项目点击切换: {Object.entries(FILTER_LABELS).map(([k, v]) => (
+                    <span key={k} className={`mx-0.5 px-2 py-0.5 rounded-full ${v.color}`}>{v.text}</span>
+                  ))}，未取得强制禁用</>
+              }
+            </p>
+          </CardHeader>
+          <CardContent>
           <Tabs defaultValue="recipes">
             <TabsList>
               <TabsTrigger value="recipes">料理</TabsTrigger>
@@ -362,8 +389,9 @@ export function SettingsPage() {
               />
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {showProfitNoticeModal && (
         <div className="fixed inset-0 z-[110]">

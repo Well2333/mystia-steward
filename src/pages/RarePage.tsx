@@ -375,7 +375,9 @@ export function RarePage() {
     <div className="space-y-4">
       <div className="flex items-center gap-4 flex-wrap">
         <h1 className="text-2xl font-bold text-foreground">稀客推荐</h1>
-        <RegionSelector value={place} onChange={handlePlaceChange} />
+        <div data-guide="rare-region-selector">
+          <RegionSelector value={place} onChange={handlePlaceChange} />
+        </div>
         {place && (
           <>
             <Button size="sm" variant="outline" onClick={() => setShowFilter(!showFilter)}>
@@ -489,7 +491,7 @@ export function RarePage() {
         </div>
       )}
 
-      {!place && <div className="text-center py-16 text-muted-foreground text-lg">请先选择地区</div>}
+  {!place && <div data-guide="rare-empty-state" className="text-center py-16 text-muted-foreground text-lg">请先选择地区</div>}
 
       {showFilter && place && (
         <Card>
@@ -510,7 +512,7 @@ export function RarePage() {
 
       {/* 稀客头像选择 */}
       {place && visibleCustomers.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
+        <div data-guide="rare-customer-strip" className="flex gap-2 flex-wrap">
           {visibleCustomers.map((c) => {
             const isSelected = selectedCustomerId === c.id;
             const savedFoodTag = rareCustomerTags[c.id]?.food ?? null;
@@ -530,9 +532,17 @@ export function RarePage() {
         </div>
       )}
 
+      {place && !selectedCustomer && (
+        <Card data-guide="rare-order-placeholder" className="bg-card/80">
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            先从上方选择一位稀客，这里才会展开点单料理 Tag、点单酒水 Tag 和推荐结果。
+          </CardContent>
+        </Card>
+      )}
+
       {/* 稀客信息卡 + 点单选择 */}
       {selectedCustomer && (
-        <Card className="bg-card">
+        <Card data-guide="rare-order-tags" className="bg-card">
           <CardContent className="p-4">
             <div className="flex gap-4 items-start">
               <Sprite type="customer_rare" index={rareCustomerIndexMap.get(selectedCustomer.id) ?? 0} size={80} className="rounded-xl border border-border shrink-0" />
@@ -596,7 +606,7 @@ export function RarePage() {
               </div>
             </div>
             <Separator className="my-3" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div data-guide="rare-order-tags-controls" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-semibold mb-2">点单料理 Tag:</p>
                 <div className="flex gap-1 flex-wrap">
@@ -636,7 +646,7 @@ export function RarePage() {
 
       {/* 推荐结果：料理 + 酒水并列 */}
       {hasResults && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div data-guide="rare-results-shell" className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* 料理区域 */}
           <div className="lg:col-span-3 space-y-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -758,7 +768,7 @@ export function RarePage() {
       )}
 
       {normalizedRequiredFoodTag && requiredBevTag && recipeResults.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">没有找到符合条件的料理</div>
+        <div data-guide="rare-empty-state" className="text-center py-12 text-muted-foreground">没有找到符合条件的料理</div>
       )}
     </div>
   );

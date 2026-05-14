@@ -24,6 +24,12 @@ import allIngredients from '@/data/ingredients.json';
 export type FilterState = 'all' | 'rare' | 'disabled';
 export type PriceSortOrder = 'asc' | 'desc';
 export type RareRecipeFilterMode = 'exgood' | 'score';
+export type GuideDataSource = 'none' | 'save' | 'config' | 'temporary';
+export const GUIDE_VERSION = 1;
+
+interface LegacyGuideState {
+  guideAutoOpenDisabled?: boolean;
+}
 
 interface GameState {
   // === 通用设置 ===
@@ -31,7 +37,9 @@ interface GameState {
   popularHateFoodTag: string | null;
   famousShopEnabled: boolean;
   hideUnowned: boolean;
-  guideAutoOpenDisabled: boolean;
+  guideCompletedVersion: number;
+  guideSkipUnlocked: boolean;
+  guideDataSource: GuideDataSource;
   showRecipeProfit: boolean;
   rareEasterVisualEnabled: boolean;
 
@@ -97,7 +105,10 @@ interface GameState {
   setPopularHateFoodTag: (tag: string | null) => void;
   setFamousShopEnabled: (v: boolean) => void;
   setHideUnowned: (v: boolean) => void;
-  setGuideAutoOpenDisabled: (v: boolean) => void;
+  completeGuide: () => void;
+  resetGuideProgress: () => void;
+  setGuideSkipUnlocked: (v: boolean) => void;
+  applyTemporaryGuideData: () => void;
   setShowRecipeProfit: (v: boolean) => void;
   setRareEasterVisualEnabled: (v: boolean) => void;
 
@@ -159,6 +170,43 @@ function uniqueNumberIds(ids: number[]): number[] {
   return out;
 }
 
+function buildAllFilter(items: Array<{ id: number }>): Record<number, FilterState> {
+  const filter: Record<number, FilterState> = {};
+  for (const item of items) {
+    filter[item.id] = 'all';
+  }
+  return filter;
+}
+
+function buildOwnedIds(items: Array<{ id: number }>): number[] {
+  return items.map((item) => item.id);
+}
+
+function buildIngredientQty(items: Array<{ id: number }>, qty: number): Record<number, number> {
+  const ownedIngredientQty: Record<number, number> = {};
+  for (const item of items) {
+    ownedIngredientQty[item.id] = qty;
+  }
+  return ownedIngredientQty;
+}
+
+function hasConfiguredData(state: Partial<GameState>): boolean {
+  return Boolean(
+    state.ownedRecipeIds?.length
+    || state.ownedBeverageIds?.length
+    || state.ownedIngredientIds?.length
+    || Object.keys(state.recipeFilter ?? {}).length
+    || Object.keys(state.beverageFilter ?? {}).length
+    || Object.keys(state.ingredientFilter ?? {}).length,
+  );
+}
+
+function normalizeGuideDataSource(value: unknown, fallback: GuideDataSource): GuideDataSource {
+  return value === 'save' || value === 'config' || value === 'temporary' || value === 'none'
+    ? value
+    : fallback;
+}
+
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
@@ -166,7 +214,9 @@ export const useGameStore = create<GameState>()(
       popularHateFoodTag: null,
       famousShopEnabled: false,
       hideUnowned: true,
-      guideAutoOpenDisabled: false,
+      guideCompletedVersion: 0,
+      guideSkipUnlocked: false,
+      guideDataSource: 'none',
       showRecipeProfit: false,
       rareEasterVisualEnabled: false,
       recipeFilter: {},
@@ -271,6 +321,7 @@ export const useGameStore = create<GameState>()(
             ownedBeverageIds: resolvedBeverageIds,
             ownedIngredientIds,
             ownedIngredientQty,
+            guideDataSource: 'save',
             popularFoodTag: importedPopularFoodTag,
             popularHateFoodTag: importedPopularHateFoodTag,
             famousShopEnabled: data.famousShopEnabled,
@@ -311,6 +362,8 @@ export const useGameStore = create<GameState>()(
         rareBeveragePriceSort: data.rareBeveragePriceSort === 'asc' ? 'asc' : 'desc',
         rareFavoriteRecipesByCustomer: data.rareFavoriteRecipesByCustomer ?? {},
         rareFavoriteBeverages: data.rareFavoriteBeverages ?? {},
+        guideSkipUnlocked: true,
+        guideDataSource: 'config',
         showRecipeProfit: data.showRecipeProfit ?? false,
         rareEasterVisualEnabled: data.rareEasterVisualEnabled ?? false,
         rareHiddenCustomerIds: data.rareHiddenCustomerIds,
@@ -323,7 +376,20 @@ export const useGameStore = create<GameState>()(
       setPopularHateFoodTag: (tag) => set({ popularHateFoodTag: tag }),
       setFamousShopEnabled: (v) => set({ famousShopEnabled: v }),
       setHideUnowned: (v) => set({ hideUnowned: v }),
-      setGuideAutoOpenDisabled: (v) => set({ guideAutoOpenDisabled: v }),
+      completeGuide: () => set({ guideCompletedVersion: GUIDE_VERSION }),
+      resetGuideProgress: () => set({ guideCompletedVersion: 0, guideSkipUnlocked: false }),
+      setGuideSkipUnlocked: (v) => set({ guideSkipUnlocked: v }),
+      applyTemporaryGuideData: () => set((s) => ({
+        recipeFilter: buildAllFilter(allRecipes as Array<{ id: number }>),
+        beverageFilter: buildAllFilter(allBeverages as Array<{ id: number }>),
+        ingredientFilter: buildAllFilter(allIngredients as Array<{ id: number }>),
+        ownedRecipeIds: buildOwnedIds(allRecipes as Array<{ id: number }>),
+        ownedBeverageIds: buildOwnedIds(allBeverages as Array<{ id: number }>),
+        ownedIngredientIds: buildOwnedIds(allIngredients as Array<{ id: number }>),
+        ownedIngredientQty: buildIngredientQty(allIngredients as Array<{ id: number }>, 100),
+        guideDataSource: 'temporary',
+        guideSkipUnlocked: s.guideSkipUnlocked,
+      })),
       setShowRecipeProfit: (v) => set({ showRecipeProfit: v }),
       setRareEasterVisualEnabled: (v) => set({ rareEasterVisualEnabled: v }),
 
@@ -571,6 +637,25 @@ export const useGameStore = create<GameState>()(
           .map(([id]) => Number(id));
       },
     }),
-    { name: 'mystia-steward-game-store' },
+    {
+      name: 'mystia-steward-game-store',
+      version: 2,
+      migrate: (persistedState) => {
+        const state = (persistedState ?? {}) as Partial<GameState> & LegacyGuideState;
+        const fallbackGuideDataSource = hasConfiguredData(state) ? 'config' : 'none';
+        return {
+          ...state,
+          guideCompletedVersion: typeof state.guideCompletedVersion === 'number'
+            ? state.guideCompletedVersion
+            : state.guideAutoOpenDisabled
+              ? GUIDE_VERSION
+              : 0,
+          guideSkipUnlocked: typeof state.guideSkipUnlocked === 'boolean'
+            ? state.guideSkipUnlocked
+            : false,
+          guideDataSource: normalizeGuideDataSource(state.guideDataSource, fallbackGuideDataSource),
+        };
+      },
+    },
   ),
 );

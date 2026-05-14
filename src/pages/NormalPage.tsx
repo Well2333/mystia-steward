@@ -121,17 +121,19 @@ export function NormalPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4 flex-wrap">
         <h1 className="text-2xl font-bold text-foreground">普客推荐</h1>
-        <RegionSelector value={place} onChange={store.setNormalSelectedPlace} />
+        <div data-guide="normal-region-selector">
+          <RegionSelector value={place} onChange={store.setNormalSelectedPlace} />
+        </div>
       </div>
 
-      {!place && <div className="text-center py-16 text-muted-foreground text-lg">请先选择地区</div>}
+      {!place && <div data-guide="normal-empty-state" className="text-center py-16 text-muted-foreground text-lg">请先选择地区</div>}
 
       {place && normalRecipeIds.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">尚未设置可用料理，请先前往设置页导入存档或手动勾选</div>
+        <div data-guide="normal-empty-state" className="text-center py-16 text-muted-foreground">尚未设置可用料理，请先前往设置页导入存档或手动勾选</div>
       )}
 
       {place && (rawRecipeResults.length > 0 || rawBevResults.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div data-guide="normal-results-shell" className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3 space-y-4">
             {/* Tab + Sort controls */}
             <div className="flex items-center justify-between flex-wrap gap-2">
